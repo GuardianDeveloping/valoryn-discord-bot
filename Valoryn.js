@@ -40,6 +40,7 @@ if (!fs.existsSync(serverSettingsPath)) {
 
 let profiles = {};
 let serverSettings = {};
+let activeRuneQuiz = {};
 
 if (fs.existsSync(profilesPath)) {
   profiles = JSON.parse(fs.readFileSync(profilesPath, "utf8"));
@@ -323,6 +324,65 @@ function getStatusEmoji(status) {
   return "⚫ Offline";
 }
 
+
+async function postRuneQuiz(channel, guildId) {
+  const quiz = runeQuizzes[Math.floor(Math.random() * runeQuizzes.length)];
+
+  const quizEmbed = new EmbedBuilder()
+    .setColor("#6D28D9")
+    .setTitle("📜 Rune Puzzle")
+    .setDescription(
+      `The Guild Archivists have uncovered an ancient rune sequence.\n\n` +
+      `# ${quiz.runes}\n\n` +
+      `First adventurer to decipher it wins rewards.`
+    )
+    .setFooter({ text: "Valoryn • Decipher the runes" })
+    .setTimestamp();
+
+  const hintButton = new ButtonBuilder()
+    .setCustomId("rune_hint")
+    .setLabel("Reveal Hint")
+    .setEmoji("💡")
+    .setStyle(ButtonStyle.Secondary);
+
+  const firstLetterButton = new ButtonBuilder()
+    .setCustomId("rune_first_letter")
+    .setLabel("First Letter")
+    .setEmoji("🔤")
+    .setStyle(ButtonStyle.Secondary);
+
+  const statsButton = new ButtonBuilder()
+    .setCustomId("rune_stats")
+    .setLabel("Rune Stats")
+    .setEmoji("📊")
+    .setStyle(ButtonStyle.Secondary);
+
+  const skipButton = new ButtonBuilder()
+    .setCustomId("rune_skip")
+    .setLabel("Skip Puzzle")
+    .setEmoji("⏭️")
+    .setStyle(ButtonStyle.Danger);
+
+  const row = new ActionRowBuilder().addComponents(
+    hintButton,
+    firstLetterButton,
+    statsButton,
+    skipButton
+  );
+
+  const quizMessage = await channel.send({
+    embeds: [quizEmbed],
+    components: [row]
+  });
+
+  activeRuneQuizzes[guildId] = {
+    channelId: channel.id,
+    messageId: quizMessage.id,
+    answer: quiz.answer.toLowerCase(),
+    hint: quiz.hint
+  };
+}
+
 async function buildStaffBoardEmbed(guild) {
   await guild.members.fetch();
 
@@ -363,10 +423,6 @@ async function buildStaffBoardEmbed(guild) {
 }
 
 
-
-
-
-let activeRuneQuiz = null;
 
 const runeQuizzes = [
   {
@@ -950,20 +1006,35 @@ const activeRuneQuiz = activeRuneQuizzes[guildId];
     saveProfiles();
 
     const winEmbed = new EmbedBuilder()
-      .setColor("#FBBF24")
-      .setTitle("⚔️ Rune Puzzle Solved!")
-      .setDescription(
-        `${message.author} deciphered the runes!\n\n` +
-        `Answer: **${activeRuneQuiz.answer}**\n\n` +
-        `Rewards:\n✨ **+${runeRenownReward} Renown**\n🪙 **+${runeGoldReward} Gold**\n\n` +
-        `🎒 Loot Found:\n${loot.item}\n⭐ ${loot.rarity}`
-        )
-      .setFooter({ text: "Valoryn • Another legend is written" })
-      .setTimestamp();
+  .setColor("#FBBF24")
+  .setTitle("⚔️ Rune Puzzle Solved!")
+  .setDescription(
+    `${message.author} deciphered the runes!\n\n` +
+    `Answer: **${activeRuneQuiz.answer}**\n\n` +
+    `Rewards:\n✨ **+${runeRenownReward} Renown**\n🪙 **+${runeGoldReward} Gold**\n\n` +
+    `🎒 Loot Found:\n${loot.item}\n⭐ ${loot.rarity}`
+  )
+  .setFooter({ text: "Valoryn • Another legend is written" })
+  .setTimestamp();
 
-    delete activeRuneQuizzes[guildId];
+try {
+  const oldMessage = await message.channel.messages.fetch(activeRuneQuiz.messageId);
+  await oldMessage.delete();
+} catch (error) {
+  console.error("Could not delete old rune quiz:", error.message);
+}
 
-    return message.channel.send({ embeds: [winEmbed] });
+delete activeRuneQuizzes[guildId];
+
+await message.channel.send({ embeds: [winEmbed] });
+
+await message.channel.send("🔮 The runes shift and reform...");
+
+setTimeout(async () => {
+  await postRuneQuiz(message.channel, guildId);
+}, 5000);
+
+return;
   }
 
 // Chat XP cooldown
@@ -1221,70 +1292,85 @@ saveProfiles();
 }
 
 if (interaction.commandName === "runequiz") {
-  if (activeRuneQuiz) {
+  const guildId = interaction.guild.id;
+
+  if (activeRuneQuizzes[guildId]) {
     return interaction.reply({
-      content: "A rune puzzle is already active in the guild hall.",
+      content: "A rune puzzle is already active in this guild hall.",
       ephemeral: true
     });
   }
 
-  const guildSettings = serverSettings[interaction.guild.id];
+  const guildSettings = serverSettings[guildId];
   const targetChannelId = guildSettings?.runeQuizChannel;
+
   const targetChannel = targetChannelId
     ? interaction.guild.channels.cache.get(targetChannelId)
     : interaction.channel;
 
+  if (!targetChannel) {
+    return interaction.reply({
+      content: "I could not find the Rune Quiz channel. Try setting it again.",
+      ephemeral: true
+    });
+  }
+
   const quiz = runeQuizzes[Math.floor(Math.random() * runeQuizzes.length)];
 
-  activeRuneQuiz = {
-    channelId: targetChannel.id,
-    answer: quiz.answer.toLowerCase(),
-    hint: quiz.hint,
-    startedBy: interaction.user.id
-  };
   const quizEmbed = new EmbedBuilder()
     .setColor("#6D28D9")
     .setTitle("📜 Rune Puzzle")
     .setDescription(
       `The Guild Archivists have uncovered an ancient rune sequence.\n\n` +
       `# ${quiz.runes}\n\n` +
-      `First adventurer to decipher it wins:\n` +
-      `✨ **+25 Renown**\n` +
-      `🪙 **+10 Gold**`
+      `First adventurer to decipher it wins rewards.`
     )
     .setFooter({ text: "Valoryn • Decipher the runes" })
     .setTimestamp();
 
-    const hintButton = new ButtonBuilder()
-  .setCustomId("rune_hint")
-  .setLabel("Reveal Hint")
-  .setEmoji("💡")
-  .setStyle(ButtonStyle.Secondary);
+  const hintButton = new ButtonBuilder()
+    .setCustomId("rune_hint")
+    .setLabel("Reveal Hint")
+    .setEmoji("💡")
+    .setStyle(ButtonStyle.Secondary);
 
   const firstLetterButton = new ButtonBuilder()
-  .setCustomId("rune_first_letter")
-  .setLabel("Reveal First Letter")
-  .setEmoji("🔤")
-  .setStyle(ButtonStyle.Secondary);
+    .setCustomId("rune_first_letter")
+    .setLabel("First Letter")
+    .setEmoji("🔤")
+    .setStyle(ButtonStyle.Secondary);
+
+  const statsButton = new ButtonBuilder()
+    .setCustomId("rune_stats")
+    .setLabel("Rune Stats")
+    .setEmoji("📊")
+    .setStyle(ButtonStyle.Secondary);
 
   const skipButton = new ButtonBuilder()
-  .setCustomId("rune_skip")
-  .setLabel("Skip Puzzle")
-  .setEmoji("⏭️")
-  .setStyle(ButtonStyle.Danger);
+    .setCustomId("rune_skip")
+    .setLabel("Skip Puzzle")
+    .setEmoji("⏭️")
+    .setStyle(ButtonStyle.Danger);
 
-  const runeStats = new ButtonBuilder()
-  .setCustomId("rune_stats")
-  .setLabel("Rune Stats")
-  .setEmoji("📊")
-  .setStyle(ButtonStyle.Success);
+  const row = new ActionRowBuilder().addComponents(
+    hintButton,
+    firstLetterButton,
+    statsButton,
+    skipButton
+  );
 
-const row = new ActionRowBuilder().addComponents(hintButton, firstLetterButton, skipButton, runeStats);
-
-  await targetChannel.send({
+  const quizMessage = await targetChannel.send({
     embeds: [quizEmbed],
     components: [row]
   });
+
+  activeRuneQuizzes[guildId] = {
+    channelId: targetChannel.id,
+    messageId: quizMessage.id,
+    answer: quiz.answer.toLowerCase(),
+    hint: quiz.hint,
+    startedBy: interaction.user.id
+  };
 
   await interaction.reply({
     content: `🔮 Rune puzzle posted in ${targetChannel}.`,
