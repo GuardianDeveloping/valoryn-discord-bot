@@ -22,15 +22,33 @@ const client = new Client({
 });
 
 const profilesPath = "./data/profiles.json";
-
-let profiles = {};
-
 const serverSettingsPath = "./data/serverSettings.json";
 
+if (!fs.existsSync("./data")) {
+  fs.mkdirSync("./data");
+}
+
+if (!fs.existsSync(profilesPath)) {
+  fs.writeFileSync(profilesPath, "{}");
+}
+
+if (!fs.existsSync(serverSettingsPath)) {
+  fs.writeFileSync(serverSettingsPath, "{}");
+}
+
+let profiles = {};
 let serverSettings = {};
+
+if (fs.existsSync(profilesPath)) {
+  profiles = JSON.parse(fs.readFileSync(profilesPath, "utf8"));
+}
 
 if (fs.existsSync(serverSettingsPath)) {
   serverSettings = JSON.parse(fs.readFileSync(serverSettingsPath, "utf8"));
+}
+
+function saveProfiles() {
+  fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
 }
 
 function saveServerSettings() {
@@ -40,49 +58,64 @@ function saveServerSettings() {
   );
 }
 
-if (fs.existsSync(profilesPath)) {
-  profiles = JSON.parse(fs.readFileSync(profilesPath, "utf8"));
-}
-
-function saveProfiles() {
-  fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
-}
-
 function createProfile(userId) {
   if (!profiles[userId]) {
-    if (!profile.titles) profile.titles = ["Wanderer"];
-    if (!profile.activeTitle) profile.activeTitle = "Wanderer";
-    if (!profile.achievements) profile.achievements = [];
-    if (!profile.inventory) profile.inventory = [];
     profiles[userId] = {
       renown: 0,
       level: 1,
       gold: 100,
       class: "Novice",
+
       titles: ["Wanderer"],
       activeTitle: "Wanderer",
+      achievements: [],
+
       gamesWon: 0,
       questsCompleted: 0,
-      lastXp: 0,
-      lastDaily: 0,
-      dailyStreak: 0,
-      lastDailyDate: 0,
+      questBoardsCompleted: 0,
+
       runesSolved: 0,
-      dailyMessages: 0,
-      dailyRunesSolved: 0,
-      dailyQuestClaimed: false,
+      dailyStreak: 0,
+      lastDaily: 0,
+      lastXp: 0,
+
       questMessages: 0,
       questRunesSolved: 0,
       questDailyClaimed: false,
       questRewardClaimed: false,
-      achievements: [],
+
       inventory: [],
+
       dungeonsCompleted: 0,
-      lastDungeon: 0,
+      lastDungeon: 0
     };
 
     saveProfiles();
   }
+
+  const profile = profiles[userId];
+
+  if (!profile.titles) profile.titles = ["Wanderer"];
+  if (!profile.activeTitle) profile.activeTitle = profile.title || "Wanderer";
+  if (!profile.achievements) profile.achievements = [];
+  if (!profile.inventory) profile.inventory = [];
+
+  if (!profile.gamesWon) profile.gamesWon = 0;
+  if (!profile.questsCompleted) profile.questsCompleted = 0;
+  if (!profile.questBoardsCompleted) profile.questBoardsCompleted = 0;
+  if (!profile.runesSolved) profile.runesSolved = 0;
+  if (!profile.dailyStreak) profile.dailyStreak = 0;
+  if (!profile.lastDaily) profile.lastDaily = 0;
+  if (!profile.lastXp) profile.lastXp = 0;
+  if (!profile.dungeonsCompleted) profile.dungeonsCompleted = 0;
+  if (!profile.lastDungeon) profile.lastDungeon = 0;
+
+  if (!profile.questMessages) profile.questMessages = 0;
+  if (!profile.questRunesSolved) profile.questRunesSolved = 0;
+  if (profile.questDailyClaimed === undefined) profile.questDailyClaimed = false;
+  if (profile.questRewardClaimed === undefined) profile.questRewardClaimed = false;
+
+  saveProfiles();
 }
 
 function renownNeeded(level) {
