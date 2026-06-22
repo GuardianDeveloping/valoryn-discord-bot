@@ -30,7 +30,12 @@ if (!fs.existsSync("./data")) {
   fs.mkdirSync("./data");
 }
 
-const db = new Database("./data/valoryn.db");
+const dbPath =
+  process.env.BOT_ENV === "dev"
+    ? "./data/valoryn-dev.db"
+    : "./data/valoryn.db";
+
+const db = new Database(dbPath);
 
 db.prepare(`
   CREATE TABLE IF NOT EXISTS profiles (
@@ -115,6 +120,11 @@ function createProfile(userId) {
       questRewardClaimed: false,
 
       inventory: [],
+      equipment: {
+      weapon: null,
+      armor: null,
+      trinket: null
+    },
 
       dungeonsCompleted: 0,
       lastDungeon: 0
@@ -129,6 +139,13 @@ function createProfile(userId) {
   if (!profile.activeTitle) profile.activeTitle = profile.title || "Wanderer";
   if (!profile.achievements) profile.achievements = [];
   if (!profile.inventory) profile.inventory = [];
+  if (!profile.equipment) {
+  profile.equipment = {
+    weapon: null,
+    armor: null,
+    trinket: null
+  };
+}
 
   if (!profile.gamesWon) profile.gamesWon = 0;
   if (!profile.questsCompleted) profile.questsCompleted = 0;
@@ -705,15 +722,33 @@ const itemValues = {
     "🦴 Goblin Bone": 20,
     "🗡️ Rusted Dagger": 35,
     "💍 Tarnished Ring": 90,
-    "🐉 Dragon Scale": 200
+    "🐉 Dragon Scale": 200,
 };
 
 const shopItems = [
   { item: "🧪 Health Potion", price: 100, description: "A basic adventurer potion." },
   { item: "📜 Scroll of Fortune", price: 250, description: "A mysterious scroll for future magic." },
   { item: "💎 Rune Crystal", price: 500, description: "A valuable crystal pulsing with arcane power." },
-  { item: "🎟️ Quest Token", price: 750, description: "A token of favor from the guild." }
+  { item: "🎟️ Quest Token", price: 750, description: "A token of favor from the guild." },
+  { item: "⚔️ Iron Sword", price: 5, description: "A sturdy beginner weapon." },
+  { item: "🛡️ Leather Armor", price: 5, description: "Basic protection for dungeon runs." },
+  { item: "💍 Rune Ring", price: 7, description: "A ring humming with rune magic." },
 ];
+
+const equipmentItems = {
+  "⚔️ Iron Sword": {
+    slot: "weapon",
+    bonus: "+5% dungeon success"
+  },
+  "🛡️ Leather Armor": {
+    slot: "armor",
+    bonus: "+5% dungeon success"
+  },
+  "💍 Rune Ring": {
+    slot: "trinket",
+    bonus: "+5 rune renown"
+  }
+};
 
 const staffCategories = [
   {
@@ -839,17 +874,25 @@ const commands = [
       .setDescription("The item to sell")
       .setRequired(true)
       .addChoices(
-                //questloot selling
-        { name: "🪙 Coin Pouch", value: "🪙 Coin Pouch" },
-        { name: "📜 Ancient Scroll", value: "📜 Ancient Scroll" },
-        { name: "🧪 Minor Potion", value: "🧪 Minor Potion" },
-        { name: "💎 Guild Gem", value: "💎 Guild Gem" },
-                //runeloot selling
-        { name: "🔮 Rune Shard", value: "🔮 Rune Shard" },
-        { name: "📜 Faded Glyph", value: "📜 Faded Glyph" },
-        { name: "💠 Arcane Crystal", value: "💠 Arcane Crystal" },
-        { name: "🪬 Mystic Charm", value: "🪬 Mystic Charm" }
-            )
+  { name: "🪙 Coin Pouch", value: "🪙 Coin Pouch" },
+  { name: "📜 Ancient Scroll", value: "📜 Ancient Scroll" },
+  { name: "🧪 Minor Potion", value: "🧪 Minor Potion" },
+  { name: "💎 Guild Gem", value: "💎 Guild Gem" },
+
+  { name: "🔮 Rune Shard", value: "🔮 Rune Shard" },
+  { name: "📜 Faded Glyph", value: "📜 Faded Glyph" },
+  { name: "💠 Arcane Crystal", value: "💠 Arcane Crystal" },
+  { name: "🪬 Mystic Charm", value: "🪬 Mystic Charm" },
+
+  { name: "🦴 Goblin Bone", value: "🦴 Goblin Bone" },
+  { name: "🗡️ Rusted Dagger", value: "🗡️ Rusted Dagger" },
+  { name: "💍 Tarnished Ring", value: "💍 Tarnished Ring" },
+  { name: "🐉 Dragon Scale", value: "🐉 Dragon Scale" },
+
+  { name: "⚔️ Iron Sword", value: "⚔️ Iron Sword" },
+  { name: "🛡️ Leather Armor", value: "🛡️ Leather Armor" },
+  { name: "💍 Rune Ring", value: "💍 Rune Ring" }
+)
   ),
   new SlashCommandBuilder()
   .setName("shop")
@@ -864,11 +907,14 @@ const commands = [
       .setDescription("Choose an item to buy")
       .setRequired(true)
       .addChoices(
-        { name: "🧪 Health Potion - 100 Gold", value: "🧪 Health Potion" },
-        { name: "📜 Scroll of Fortune - 250 Gold", value: "📜 Scroll of Fortune" },
-        { name: "💎 Rune Crystal - 500 Gold", value: "💎 Rune Crystal" },
-        { name: "🎟️ Quest Token - 750 Gold", value: "🎟️ Quest Token" }
-      )
+    { name: "🧪 Health Potion - 100 Gold", value: "🧪 Health Potion" },
+    { name: "📜 Scroll of Fortune - 250 Gold", value: "📜 Scroll of Fortune" },
+    { name: "💎 Rune Crystal - 500 Gold", value: "💎 Rune Crystal" },
+    { name: "🎟️ Quest Token - 750 Gold", value: "🎟️ Quest Token" },
+    { name: "⚔️ Iron Sword - 5 Gold", value: "⚔️ Iron Sword" },
+    { name: "🛡️ Leather Armor - 5 Gold", value: "🛡️ Leather Armor" },
+    { name: "💍 Rune Ring - 7 Gold", value: "💍 Rune Ring" }
+  )
   ),
 
  new SlashCommandBuilder()
@@ -905,7 +951,38 @@ const commands = [
       .setRequired(true)
   ),
 
+  new SlashCommandBuilder()
+  .setName("equipment")
+  .setDescription("View your equipped gear"),
 
+new SlashCommandBuilder()
+  .setName("equip")
+  .setDescription("Equip an item from your inventory")
+  .addStringOption(option =>
+    option
+      .setName("item")
+      .setDescription("Item to equip")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("unequip")
+  .setDescription("Unequip a piece of gear")
+  .addStringOption(option =>
+    option
+      .setName("slot")
+      .setDescription("Equipment slot")
+      .setRequired(true)
+      .addChoices(
+        { name: "Weapon", value: "weapon" },
+        { name: "Armor", value: "armor" },
+        { name: "Trinket", value: "trinket" }
+      )
+  ),
+
+
+
+  //Utility stuff
   new SlashCommandBuilder()
   .setName("setstaffboardchannel")
   .setDescription("Set the staff board channel")
@@ -937,42 +1014,64 @@ const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 client.once("clientReady", async readyClient => {
   console.log(`Valoryn is online as ${readyClient.user.tag}`);
 
-    readyClient.user.setPresence({
-  activities: [
-    {
-      name: "/help | Forge Your Legend",
-      type: ActivityType.Playing
-    }
-  ],
-  status: "online"
-});
+  readyClient.user.setPresence({
+    activities: [
+      {
+        name: "/help | Forge Your Legend",
+        type: ActivityType.Playing
+      }
+    ],
+    status: "online"
+  });
+
   try {
-  await rest.put(
-  Routes.applicationCommands(process.env.CLIENT_ID),
-  { body: commands }
-);
+    if (process.env.BOT_ENV === "dev") {
+      await rest.put(
+        Routes.applicationGuildCommands(
+          process.env.CLIENT_ID,
+          process.env.GUILD_ID
+        ),
+        { body: commands }
+      );
 
-setInterval(async () => {
-  for (const guildId in serverSettings) {
-    const settings = serverSettings[guildId];
+      console.log("Dev guild slash commands registered.");
+    } else {
+      await rest.put(
+        Routes.applicationCommands(process.env.CLIENT_ID),
+        { body: commands }
+      );
 
-    if (!settings.staffBoardChannel || !settings.staffBoardMessageId) continue;
-
-    try {
-      const guild = await client.guilds.fetch(guildId);
-      const channel = await client.channels.fetch(settings.staffBoardChannel);
-      const message = await channel.messages.fetch(settings.staffBoardMessageId);
-
-      await message.edit({
-        embeds: [await buildStaffBoardEmbed(guild)]
-      });
-    } catch (error) {
-      console.error(`Failed to update staff board for guild ${guildId}:`, error.message);
+      console.log("Global slash commands registered.");
     }
-  }
-}, 10 * 60 * 1000);
 
-    console.log("Slash commands registered.");
+    setInterval(async () => {
+      for (const guildId in serverSettings) {
+        const settings = serverSettings[guildId];
+
+        if (!settings.staffBoardChannel || !settings.staffBoardMessageId)
+          continue;
+
+        try {
+          const guild = await client.guilds.fetch(guildId);
+          const channel = await client.channels.fetch(
+            settings.staffBoardChannel
+          );
+          const message = await channel.messages.fetch(
+            settings.staffBoardMessageId
+          );
+
+          await message.edit({
+            embeds: [await buildStaffBoardEmbed(guild)]
+          });
+        } catch (error) {
+          console.error(
+            `Failed to update staff board for guild ${guildId}:`,
+            error.message
+          );
+        }
+      }
+    }, 10 * 60 * 1000);
+
   } catch (error) {
     console.error(error);
   }
@@ -1034,12 +1133,16 @@ const activeRuneQuiz = activeRuneQuizzes[guildId];
     await message.channel.send({ embeds: [titleEmbed] });
     }
     saveProfiles();
-    
+
+   
     let runeRenownReward = 25;
     let runeGoldReward = 10;
 
     runeRenownReward = applyClassBonus(profile, "runeRenown", runeRenownReward);
     runeGoldReward = applyClassBonus(profile, "runeGold", runeGoldReward);
+     if (profile.equipment?.trinket === "💍 Rune Ring") {
+      runeRenownReward += 5;
+    }
 
     profile.renown += runeRenownReward;
     profile.gold += runeGoldReward;
@@ -1846,7 +1949,15 @@ if (interaction.commandName === "dungeon") {
 
   profile.lastDungeon = now;
 
-  let successChance = 0.75;
+  let successChance = 0.60;
+
+if (profile.equipment?.weapon === "⚔️ Iron Sword") {
+  successChance += 0.05;
+}
+
+if (profile.equipment?.armor === "🛡️ Leather Armor") {
+  successChance += 0.10;
+}
 
   if ((profile.class || "").toLowerCase() === "warrior") {
     successChance += 0.10;
@@ -2082,6 +2193,100 @@ if (interaction.commandName === "backupstats") {
       ephemeral: true
     });
   }
+}
+
+if (interaction.commandName === "equipment") {
+  createProfile(interaction.user.id);
+
+  const profile = profiles[interaction.user.id];
+
+  const equipment = profile.equipment || {};
+
+  const equipmentEmbed = new EmbedBuilder()
+    .setColor("#6D28D9")
+    .setTitle("⚔️ Equipped Gear")
+    .addFields(
+      {
+        name: "⚔️ Weapon",
+        value: equipment.weapon || "None Equipped",
+        inline: false
+      },
+      {
+        name: "🛡️ Armor",
+        value: equipment.armor || "None Equipped",
+        inline: false
+      },
+      {
+        name: "💍 Trinket",
+        value: equipment.trinket || "None Equipped",
+        inline: false
+      }
+    )
+    .setFooter({ text: "Valoryn • Equipped Relics" });
+
+  await interaction.reply({
+    embeds: [equipmentEmbed],
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "equip") {
+  createProfile(interaction.user.id);
+
+  const profile = profiles[interaction.user.id];
+
+  const item = interaction.options.getString("item");
+
+  if (!profile.inventory?.includes(item)) {
+    return interaction.reply({
+      content: "You do not possess that item.",
+      ephemeral: true
+    });
+  }
+
+  const equipmentData = equipmentItems[item];
+
+  if (!equipmentData) {
+    return interaction.reply({
+      content: "That item cannot be equipped.",
+      ephemeral: true
+    });
+  }
+
+  profile.equipment[equipmentData.slot] = item;
+
+  saveProfiles();
+
+  await interaction.reply({
+    content: `✅ Equipped ${item} in your ${equipmentData.slot} slot.`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "unequip") {
+  createProfile(interaction.user.id);
+
+  const profile = profiles[interaction.user.id];
+
+  const slot = interaction.options.getString("slot");
+
+  if (!profile.equipment[slot]) {
+    return interaction.reply({
+      content: "Nothing is equipped in that slot.",
+      ephemeral: true
+    });
+  }
+
+  const item = profile.equipment[slot];
+
+  profile.equipment[slot] = null;
+
+  saveProfiles();
+
+  await interaction.reply({
+    content: `✅ Unequipped ${item}.`,
+    ephemeral: true
+  });
 }
 
 
