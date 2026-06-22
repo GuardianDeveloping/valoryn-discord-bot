@@ -24,42 +24,65 @@ const client = new Client({
   ]
 });
 
-const profilesPath = "./data/profiles.json";
-const serverSettingsPath = "./data/serverSettings.json";
+const Database = require("better-sqlite3");
 
 if (!fs.existsSync("./data")) {
   fs.mkdirSync("./data");
 }
 
-if (!fs.existsSync(profilesPath)) {
-  fs.writeFileSync(profilesPath, "{}");
-}
+const db = new Database("./data/valoryn.db");
 
-if (!fs.existsSync(serverSettingsPath)) {
-  fs.writeFileSync(serverSettingsPath, "{}");
-}
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS profiles (
+    userId TEXT PRIMARY KEY,
+    data TEXT NOT NULL
+  )
+`).run();
+
+db.prepare(`
+  CREATE TABLE IF NOT EXISTS serverSettings (
+    guildId TEXT PRIMARY KEY,
+    data TEXT NOT NULL
+  )
+`).run();
 
 let profiles = {};
 let serverSettings = {};
-let activeRuneQuizzes = {}; 
 
-if (fs.existsSync(profilesPath)) {
-  profiles = JSON.parse(fs.readFileSync(profilesPath, "utf8"));
+const profileRows = db.prepare("SELECT userId, data FROM profiles").all();
+
+for (const row of profileRows) {
+  profiles[row.userId] = JSON.parse(row.data);
 }
 
-if (fs.existsSync(serverSettingsPath)) {
-  serverSettings = JSON.parse(fs.readFileSync(serverSettingsPath, "utf8"));
+const settingsRows = db.prepare("SELECT guildId, data FROM serverSettings").all();
+
+for (const row of settingsRows) {
+  serverSettings[row.guildId] = JSON.parse(row.data);
 }
 
 function saveProfiles() {
-  fs.writeFileSync(profilesPath, JSON.stringify(profiles, null, 2));
+  const stmt = db.prepare(`
+    INSERT INTO profiles (userId, data)
+    VALUES (?, ?)
+    ON CONFLICT(userId) DO UPDATE SET data = excluded.data
+  `);
+
+  for (const [userId, profile] of Object.entries(profiles)) {
+    stmt.run(userId, JSON.stringify(profile));
+  }
 }
 
 function saveServerSettings() {
-  fs.writeFileSync(
-    serverSettingsPath,
-    JSON.stringify(serverSettings, null, 2)
-  );
+  const stmt = db.prepare(`
+    INSERT INTO serverSettings (guildId, data)
+    VALUES (?, ?)
+    ON CONFLICT(guildId) DO UPDATE SET data = excluded.data
+  `);
+
+  for (const [guildId, settings] of Object.entries(serverSettings)) {
+    stmt.run(guildId, JSON.stringify(settings));
+  }
 }
 
 function createProfile(userId) {
