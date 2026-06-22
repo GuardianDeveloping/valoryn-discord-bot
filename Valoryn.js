@@ -41,7 +41,7 @@ if (!fs.existsSync(serverSettingsPath)) {
 
 let profiles = {};
 let serverSettings = {};
-let activeRuneQuiz = {};
+let activeRuneQuizzes = {}; 
 
 if (fs.existsSync(profilesPath)) {
   profiles = JSON.parse(fs.readFileSync(profilesPath, "utf8"));
@@ -1012,7 +1012,6 @@ const activeRuneQuiz = activeRuneQuizzes[guildId];
 
     profile.renown += runeRenownReward;
     profile.gold += runeGoldReward;
-    profile.gamesWon += 1;
 
     await checkLevelUp(message, profile);
     saveProfiles();
