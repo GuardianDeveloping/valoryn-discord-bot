@@ -1103,15 +1103,20 @@ if (interaction.commandName === "runequiz") {
     });
   }
 
+  const guildSettings = serverSettings[interaction.guild.id];
+  const targetChannelId = guildSettings?.runeQuizChannel;
+  const targetChannel = targetChannelId
+    ? interaction.guild.channels.cache.get(targetChannelId)
+    : interaction.channel;
+
   const quiz = runeQuizzes[Math.floor(Math.random() * runeQuizzes.length)];
 
- activeRuneQuiz = {
-  channelId: interaction.channel.id,
-  answer: quiz.answer.toLowerCase(),
-  hint: quiz.hint,
-  startedBy: interaction.user.id
-};
-
+  activeRuneQuiz = {
+    channelId: targetChannel.id,
+    answer: quiz.answer.toLowerCase(),
+    hint: quiz.hint,
+    startedBy: interaction.user.id
+  };
   const quizEmbed = new EmbedBuilder()
     .setColor("#6D28D9")
     .setTitle("📜 Rune Puzzle")
@@ -1151,10 +1156,15 @@ if (interaction.commandName === "runequiz") {
 
 const row = new ActionRowBuilder().addComponents(hintButton, firstLetterButton, skipButton, runeStats);
 
+  await targetChannel.send({
+    embeds: [quizEmbed],
+    components: [row]
+  });
+
   await interaction.reply({
-  embeds: [quizEmbed],
-  components: [row]
-});
+    content: `🔮 Rune puzzle posted in ${targetChannel}.`,
+    ephemeral: true
+  });
 }
 
 if (interaction.commandName === "class") {
@@ -1742,7 +1752,6 @@ if (interaction.commandName === "help") {
 }
 
 if (interaction.commandName === "setrunequizchannel") {
-
   if (!interaction.memberPermissions.has("Administrator")) {
     return interaction.reply({
       content: "Only administrators may configure the guild.",
@@ -1751,22 +1760,17 @@ if (interaction.commandName === "setrunequizchannel") {
   }
 
   const guildId = interaction.guild.id;
-
-  if (!serverSettings[guildId]) {
-    serverSettings[guildId] = {};
-  }
-
-  // 👇 This is where those lines go
   const channel = interaction.options.getChannel("channel");
 
-serverSettings[guildId].runeQuizChannel = channel.id;
-saveServerSettings();
+  if (!serverSettings[guildId]) serverSettings[guildId] = {};
 
-await interaction.reply({
-  content: `🔮 Rune Quiz channel set to ${channel}.`,
-  ephemeral: true
-});
+  serverSettings[guildId].runeQuizChannel = channel.id;
+  saveServerSettings();
 
+  return interaction.reply({
+    content: `🔮 Rune Quiz channel set to ${channel}.`,
+    ephemeral: true
+  });
 }
 
 
