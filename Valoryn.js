@@ -92,6 +92,7 @@ function saveServerSettings() {
 
 const path = require("path");
 
+let activeRuneQuizzes = {};
 
 function createProfile(userId) {
   if (!profiles[userId]) {
@@ -464,6 +465,26 @@ async function buildStaffBoardEmbed(guild) {
   }
 
   return embed;
+}
+
+function getEquipmentBonus(profile, bonusType) {
+  let bonus = 0;
+
+  const equipment = profile.equipment || {};
+
+  if (equipment.weapon === "⚔️ Iron Sword" && bonusType === "dungeonSuccess") {
+    bonus += 0.05;
+  }
+
+  if (equipment.armor === "🛡️ Leather Armor" && bonusType === "dungeonSuccess") {
+    bonus += 0.10;
+  }
+
+  if (equipment.trinket === "💍 Rune Ring" && bonusType === "runeRenown") {
+    bonus += 5;
+  }
+
+  return bonus;
 }
 
 
@@ -911,9 +932,9 @@ const commands = [
     { name: "📜 Scroll of Fortune - 250 Gold", value: "📜 Scroll of Fortune" },
     { name: "💎 Rune Crystal - 500 Gold", value: "💎 Rune Crystal" },
     { name: "🎟️ Quest Token - 750 Gold", value: "🎟️ Quest Token" },
-    { name: "⚔️ Iron Sword - 5 Gold", value: "⚔️ Iron Sword" },
-    { name: "🛡️ Leather Armor - 5 Gold", value: "🛡️ Leather Armor" },
-    { name: "💍 Rune Ring - 7 Gold", value: "💍 Rune Ring" }
+    { name: "⚔️ Iron Sword - 500 Gold", value: "⚔️ Iron Sword" },
+    { name: "🛡️ Leather Armor - 500 Gold", value: "🛡️ Leather Armor" },
+    { name: "💍 Rune Ring - 750 Gold", value: "💍 Rune Ring" }
   )
   ),
 
@@ -978,6 +999,55 @@ new SlashCommandBuilder()
         { name: "Armor", value: "armor" },
         { name: "Trinket", value: "trinket" }
       )
+  ),
+
+
+new SlashCommandBuilder()
+  .setName("givegold")
+  .setDescription("Give gold to a player")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Player")
+      .setRequired(true)
+  )
+  .addIntegerOption(option =>
+    option
+      .setName("amount")
+      .setDescription("Gold amount")
+      .setRequired(true)
+  ),
+
+  new SlashCommandBuilder()
+  .setName("giveitem")
+  .setDescription("Give an item to a player")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Player")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option
+      .setName("item")
+      .setDescription("Item")
+      .setRequired(true)
+  ),
+
+  new SlashCommandBuilder()
+  .setName("givetitle")
+  .setDescription("Grant a title")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Player")
+      .setRequired(true)
+  )
+  .addStringOption(option =>
+    option
+      .setName("title")
+      .setDescription("Title")
+      .setRequired(true)
   ),
 
 
@@ -1081,7 +1151,7 @@ client.on("messageCreate", async message => {
   if (message.author.bot) return;
   if (!message.guild) return;
   const guildId = message.guild.id;
-const activeRuneQuiz = activeRuneQuizzes[guildId];
+  const activeRuneQuiz = activeRuneQuizzes[guildId];
 
   createProfile(message.author.id);
 
@@ -1140,9 +1210,7 @@ const activeRuneQuiz = activeRuneQuizzes[guildId];
 
     runeRenownReward = applyClassBonus(profile, "runeRenown", runeRenownReward);
     runeGoldReward = applyClassBonus(profile, "runeGold", runeGoldReward);
-     if (profile.equipment?.trinket === "💍 Rune Ring") {
-      runeRenownReward += 5;
-    }
+    runeRenownReward += getEquipmentBonus(profile, "runeRenown");
 
     profile.renown += runeRenownReward;
     profile.gold += runeGoldReward;
@@ -1202,6 +1270,8 @@ saveProfiles();
 client.on("interactionCreate", async interaction => {
  
   if (interaction.isButton()) {
+  const guildId = interaction.guild.id;
+  const activeRuneQuiz = activeRuneQuizzes[guildId];
   if (interaction.customId === "rune_hint") {
     if (!activeRuneQuiz) {
       return interaction.reply({
@@ -1951,17 +2021,10 @@ if (interaction.commandName === "dungeon") {
 
   let successChance = 0.60;
 
-if (profile.equipment?.weapon === "⚔️ Iron Sword") {
-  successChance += 0.05;
-}
-
-if (profile.equipment?.armor === "🛡️ Leather Armor") {
-  successChance += 0.10;
-}
-
   if ((profile.class || "").toLowerCase() === "warrior") {
     successChance += 0.10;
   }
+  successChance += getEquipmentBonus(profile, "dungeonSuccess");
 
   const success = Math.random() < successChance;
 
@@ -2200,28 +2263,47 @@ if (interaction.commandName === "equipment") {
 
   const profile = profiles[interaction.user.id];
 
-  const equipment = profile.equipment || {};
+const weapon = profile.equipment.weapon;
+const armor = profile.equipment.armor;
+const trinket = profile.equipment.trinket;
 
+const weaponBonus = weapon && equipmentItems[weapon]
+  ? equipmentItems[weapon].bonus
+  : "No bonus";
+
+const armorBonus = armor && equipmentItems[armor]
+  ? equipmentItems[armor].bonus
+  : "No bonus";
+
+const trinketBonus = trinket && equipmentItems[trinket]
+  ? equipmentItems[trinket].bonus
+  : "No bonus";
   const equipmentEmbed = new EmbedBuilder()
     .setColor("#6D28D9")
     .setTitle("⚔️ Equipped Gear")
-    .addFields(
-      {
-        name: "⚔️ Weapon",
-        value: equipment.weapon || "None Equipped",
-        inline: false
-      },
-      {
-        name: "🛡️ Armor",
-        value: equipment.armor || "None Equipped",
-        inline: false
-      },
-      {
-        name: "💍 Trinket",
-        value: equipment.trinket || "None Equipped",
-        inline: false
-      }
-    )
+   .addFields(
+  {
+    name: "⚔️ Weapon",
+    value: weapon
+      ? `${weapon}\n**Bonus:** ${weaponBonus}`
+      : "None Equipped",
+    inline: false
+  },
+  {
+    name: "🛡️ Armor",
+    value: armor
+      ? `${armor}\n**Bonus:** ${armorBonus}`
+      : "None Equipped",
+    inline: false
+  },
+  {
+    name: "💍 Trinket",
+    value: trinket
+      ? `${trinket}\n**Bonus:** ${trinketBonus}`
+      : "None Equipped",
+    inline: false
+  }
+)
     .setFooter({ text: "Valoryn • Equipped Relics" });
 
   await interaction.reply({
@@ -2285,6 +2367,85 @@ if (interaction.commandName === "unequip") {
 
   await interaction.reply({
     content: `✅ Unequipped ${item}.`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "givegold") {
+  if (!interaction.memberPermissions.has("Administrator")) {
+    return interaction.reply({
+      content: "Only administrators may use this command.",
+      ephemeral: true
+    });
+  }
+
+  const user = interaction.options.getUser("user");
+  const amount = interaction.options.getInteger("amount");
+
+  createProfile(user.id);
+
+  profiles[user.id].gold += amount;
+
+  saveProfiles();
+
+  await interaction.reply({
+    content: `🪙 Gave ${amount} gold to ${user}.`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "giveitem") {
+  if (!interaction.memberPermissions.has("Administrator")) {
+    return interaction.reply({
+      content: "Only administrators may use this command.",
+      ephemeral: true
+    });
+  }
+
+  const user = interaction.options.getUser("user");
+  const item = interaction.options.getString("item");
+
+  createProfile(user.id);
+
+  if (!profiles[user.id].inventory) {
+    profiles[user.id].inventory = [];
+  }
+
+  profiles[user.id].inventory.push(item);
+
+  saveProfiles();
+
+  await interaction.reply({
+    content: `🎒 Gave **${item}** to ${user}.`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "givetitle") {
+  if (!interaction.memberPermissions.has("Administrator")) {
+    return interaction.reply({
+      content: "Only administrators may use this command.",
+      ephemeral: true
+    });
+  }
+
+  const user = interaction.options.getUser("user");
+  const title = interaction.options.getString("title");
+
+  createProfile(user.id);
+
+  if (!profiles[user.id].titles) {
+    profiles[user.id].titles = [];
+  }
+
+  if (!profiles[user.id].titles.includes(title)) {
+    profiles[user.id].titles.push(title);
+  }
+
+  saveProfiles();
+
+  await interaction.reply({
+    content: `🏆 Granted **${title}** to ${user}.`,
     ephemeral: true
   });
 }
