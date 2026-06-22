@@ -85,6 +85,9 @@ function saveServerSettings() {
   }
 }
 
+const path = require("path");
+
+
 function createProfile(userId) {
   if (!profiles[userId]) {
     profiles[userId] = {
@@ -916,6 +919,11 @@ const commands = [
 new SlashCommandBuilder()
   .setName("poststaffboard")
   .setDescription("Post the auto-updating staff board"),
+
+
+new SlashCommandBuilder()
+  .setName("backupstats")
+  .setDescription("Create a backup of Valoryn data"),
 
 
 
@@ -2017,6 +2025,62 @@ if (interaction.commandName === "poststaffboard") {
     content: `🛡️ Staff board posted in ${channel}.`,
     ephemeral: true
   });
+}
+
+if (interaction.commandName === "backupstats") {
+  if (!interaction.memberPermissions.has("Administrator")) {
+    return interaction.reply({
+      content: "Only administrators may create backups.",
+      ephemeral: true
+    });
+  }
+
+  try {
+    const profileRows = db.prepare(
+      "SELECT userId, data FROM profiles"
+    ).all();
+
+    const settingsRows = db.prepare(
+      "SELECT guildId, data FROM serverSettings"
+    ).all();
+
+    const backup = {
+      createdAt: new Date().toISOString(),
+      profiles: {},
+      serverSettings: {}
+    };
+
+    for (const row of profileRows) {
+      backup.profiles[row.userId] = JSON.parse(row.data);
+    }
+
+    for (const row of settingsRows) {
+      backup.serverSettings[row.guildId] = JSON.parse(row.data);
+    }
+
+    const backupFile = path.join(
+      "./data",
+      `valoryn-backup-${Date.now()}.json`
+    );
+
+    fs.writeFileSync(
+      backupFile,
+      JSON.stringify(backup, null, 2)
+    );
+
+    await interaction.reply({
+      content: `✅ Backup created.\n\`${backupFile}\``,
+      ephemeral: true
+    });
+
+  } catch (error) {
+    console.error(error);
+
+    await interaction.reply({
+      content: "❌ Failed to create backup.",
+      ephemeral: true
+    });
+  }
 }
 
 
