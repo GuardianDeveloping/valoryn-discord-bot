@@ -111,3 +111,30 @@ Valoryn is now live and available across multiple Discord servers!
 - `/help`
 
 Forge your legend.
+
+## 🏰 Dungeons Reborn v1
+
+### Added
+
+- Multiple dungeon types
+  - Goblin Cave
+  - Ancient Crypt
+  - Dragon's Lair
+
+- Dynamic dungeon encounters
+- Rare encounters with bonus rewards
+- Dungeon-specific loot tables
+- Rare gear drops
+
+### Equipment
+
+- Equipment bonuses now affect gameplay
+- Added Goblin Cleaver
+- Added Crypt Shield
+- Added Dragonheart Ring
+
+### Development
+
+- One-codebase Dev/Production setup
+- SQLite persistence improvements
+- Backup system
