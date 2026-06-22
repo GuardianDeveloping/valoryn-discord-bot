@@ -17,7 +17,9 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildPresences
   ]
 });
 
@@ -122,8 +124,10 @@ function renownNeeded(level) {
   return level * 100;
 }
 
-async function checkLevelUp(message, profile) {
-  let leveledUp = false;
+async function checkLevelUp(source, profile) {
+  const user = source.author || source.user;
+  const channel = source.channel;
+    let leveledUp = false;
 
   while (profile.renown >= renownNeeded(profile.level)) {
     profile.renown -= renownNeeded(profile.level);
@@ -137,11 +141,11 @@ async function checkLevelUp(message, profile) {
       const titleEmbed = new EmbedBuilder()
         .setColor("#FBBF24")
         .setTitle("🏆 Title Unlocked!")
-        .setDescription(`${message.author} has unlocked the title **${title}**!`)
+        .setDescription(`${user} has unlocked the title **${title}**!`)
         .setFooter({ text: "Valoryn • A new legend is written" })
         .setTimestamp();
 
-      await message.channel.send({ embeds: [titleEmbed] });
+      await channel.send({ embeds: [titleEmbed] });
     }
   }
 
@@ -150,11 +154,11 @@ async function checkLevelUp(message, profile) {
       .setColor("#FBBF24")
       .setTitle("🌟 Rank Ascended!")
       .setDescription(
-        `${message.author} has risen to **Level ${profile.level}**!\n\nThe guild grants them **25 gold**.`
+        `${user} has risen to **Level ${profile.level}**!\n\nThe guild grants them **25 gold**.`
       )
       .setFooter({ text: "Valoryn • Forge Your Legend" });
 
-   await message.channel.send({ embeds: [levelEmbed] });
+   await channel.send({ embeds: [levelEmbed] });
   }
 }
 
@@ -311,6 +315,55 @@ if ((profile.questBoardsCompleted || 0) >= 100 && unlockAchievement(profile, "Gu
 
   return unlocked;
 }
+
+function getStatusEmoji(status) {
+  if (status === "online") return "🟢 Online";
+  if (status === "idle") return "🟡 Away";
+  if (status === "dnd") return "🔴 Busy";
+  return "⚫ Offline";
+}
+
+async function buildStaffBoardEmbed(guild) {
+  await guild.members.fetch();
+
+  const embed = new EmbedBuilder()
+    .setColor("#6D28D9")
+    .setTitle("🛡️ Server Staff")
+    .setFooter({ text: "Valoryn • Guild Staff Board" })
+    .setTimestamp();
+
+  for (const category of staffCategories) {
+    const role = guild.roles.cache.find(
+      r => r.name.toLowerCase() === category.roleName.toLowerCase()
+    );
+
+    let value = category.description + "\n";
+
+    if (!role) {
+      value += `No @${category.roleName} role found.`;
+    } else if (role.members.size === 0) {
+      value += `No users on this server have the @${category.roleName} role yet.`;
+    } else {
+      value += role.members
+        .map(member => {
+          const status = member.presence?.status || "offline";
+          return `${member}: ${getStatusEmoji(status)}`;
+        })
+        .join("\n");
+    }
+
+    embed.addFields({
+      name: category.title,
+      value,
+      inline: false
+    });
+  }
+
+  return embed;
+}
+
+
+
 
 
 let activeRuneQuiz = null;
@@ -579,6 +632,39 @@ const shopItems = [
   { item: "🎟️ Quest Token", price: 750, description: "A token of favor from the guild." }
 ];
 
+const staffCategories = [
+  {
+    title: "Owner",
+    roleName: "Owner/Streamer",
+    description: "Owner of the server!"
+  },
+  {
+    title: "Manager",
+    roleName: "Manager",
+    description: "Person who manages the discord server!"
+  },
+  {
+    title: "Head Mod",
+    roleName: "Head Mod",
+    description: "Highest rank of moderation that manages the servers moderation team!"
+  },
+  {
+    title: "Twitch Mod",
+    roleName: "Twitch Mod",
+    description: "Twitch moderator who is a moderator in Sohji's streams!"
+  },
+  {
+    title: "Mod",
+    roleName: "Mod",
+    description: "Moderator who manages the server to keep it clean and running nice!"
+  },
+  {
+    title:"Trainee Mod",
+    roleName: "Trainee Mod",
+    description:"Moderator who is just starting out without any crazy permissions!"
+  }
+];
+
 
 
 const commands = [
@@ -734,7 +820,23 @@ const commands = [
       .setName("channel")
       .setDescription("Channel for Rune Quizzes")
       .setRequired(true)
-  )
+  ),
+
+
+  new SlashCommandBuilder()
+  .setName("setstaffboardchannel")
+  .setDescription("Set the staff board channel")
+  .addChannelOption(option =>
+    option
+      .setName("channel")
+      .setDescription("Channel for the staff board")
+      .setRequired(true)
+  ),
+
+new SlashCommandBuilder()
+  .setName("poststaffboard")
+  .setDescription("Post the auto-updating staff board"),
+
 
 
 
@@ -751,6 +853,26 @@ client.once("clientReady", async readyClient => {
   { body: commands }
 );
 
+setInterval(async () => {
+  for (const guildId in serverSettings) {
+    const settings = serverSettings[guildId];
+
+    if (!settings.staffBoardChannel || !settings.staffBoardMessageId) continue;
+
+    try {
+      const guild = await client.guilds.fetch(guildId);
+      const channel = await client.channels.fetch(settings.staffBoardChannel);
+      const message = await channel.messages.fetch(settings.staffBoardMessageId);
+
+      await message.edit({
+        embeds: [await buildStaffBoardEmbed(guild)]
+      });
+    } catch (error) {
+      console.error(`Failed to update staff board for guild ${guildId}:`, error.message);
+    }
+  }
+}, 10 * 60 * 1000);
+
     console.log("Slash commands registered.");
   } catch (error) {
     console.error(error);
@@ -759,6 +881,9 @@ client.once("clientReady", async readyClient => {
 
 client.on("messageCreate", async message => {
   if (message.author.bot) return;
+  if (!message.guild) return;
+  const guildId = message.guild.id;
+const activeRuneQuiz = activeRuneQuizzes[guildId];
 
   createProfile(message.author.id);
 
@@ -792,11 +917,11 @@ client.on("messageCreate", async message => {
     const achievementEmbed = new EmbedBuilder()
         .setColor("#FBBF24")
         .setTitle("🏆 Achievement Unlocked!")
-        .setDescription(`${interaction.user} unlocked **${achievement}**!`)
+        .setDescription(`${message.author} unlocked **${achievement}**!`)
         .setFooter({ text: "Valoryn • Glory is earned" })
         .setTimestamp();
 
-    await interaction.channel.send({ embeds: [achievementEmbed] });
+    await message.channel.send({ embeds: [achievementEmbed] });
     }
 
     for (const title of unlockedTitles) {
@@ -836,7 +961,7 @@ client.on("messageCreate", async message => {
       .setFooter({ text: "Valoryn • Another legend is written" })
       .setTimestamp();
 
-    activeRuneQuiz = null;
+    delete activeRuneQuizzes[guildId];
 
     return message.channel.send({ embeds: [winEmbed] });
   }
@@ -1769,6 +1894,62 @@ if (interaction.commandName === "setrunequizchannel") {
 
   return interaction.reply({
     content: `🔮 Rune Quiz channel set to ${channel}.`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "setstaffboardchannel") {
+  if (!interaction.memberPermissions.has("Administrator")) {
+    return interaction.reply({
+      content: "Only administrators may configure the staff board.",
+      ephemeral: true
+    });
+  }
+
+  const guildId = interaction.guild.id;
+  const channel = interaction.options.getChannel("channel");
+
+  if (!serverSettings[guildId]) serverSettings[guildId] = {};
+
+  serverSettings[guildId].staffBoardChannel = channel.id;
+  saveServerSettings();
+
+  await interaction.reply({
+    content: `🛡️ Staff board channel set to ${channel}.`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "poststaffboard") {
+  if (!interaction.memberPermissions.has("Administrator")) {
+    return interaction.reply({
+      content: "Only administrators may post the staff board.",
+      ephemeral: true
+    });
+  }
+
+  const guildId = interaction.guild.id;
+
+  if (!serverSettings[guildId]?.staffBoardChannel) {
+    return interaction.reply({
+      content: "Set a staff board channel first with `/setstaffboardchannel`.",
+      ephemeral: true
+    });
+  }
+
+  const channel = await interaction.guild.channels.fetch(
+    serverSettings[guildId].staffBoardChannel
+  );
+
+  const message = await channel.send({
+    embeds: [await buildStaffBoardEmbed(interaction.guild)]
+  });
+
+  serverSettings[guildId].staffBoardMessageId = message.id;
+  saveServerSettings();
+
+  await interaction.reply({
+    content: `🛡️ Staff board posted in ${channel}.`,
     ephemeral: true
   });
 }
