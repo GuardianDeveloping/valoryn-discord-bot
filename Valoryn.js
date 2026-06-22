@@ -730,9 +730,9 @@ const shopItems = [
   { item: "📜 Scroll of Fortune", price: 250, description: "A mysterious scroll for future magic." },
   { item: "💎 Rune Crystal", price: 500, description: "A valuable crystal pulsing with arcane power." },
   { item: "🎟️ Quest Token", price: 750, description: "A token of favor from the guild." },
-  { item: "⚔️ Iron Sword", price: 5, description: "A sturdy beginner weapon." },
-  { item: "🛡️ Leather Armor", price: 5, description: "Basic protection for dungeon runs." },
-  { item: "💍 Rune Ring", price: 7, description: "A ring humming with rune magic." },
+  { item: "⚔️ Iron Sword", price: 500, description: "A sturdy beginner weapon." },
+  { item: "🛡️ Leather Armor", price: 500, description: "Basic protection for dungeon runs." },
+  { item: "💍 Rune Ring", price: 750, description: "A ring humming with rune magic." },
 ];
 
 const equipmentItems = {
