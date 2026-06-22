@@ -468,10 +468,11 @@ async function buildStaffBoardEmbed(guild) {
 }
 
 function getEquipmentBonus(profile, bonusType) {
-  let bonus = 0;
+ let bonus = 0;
 
   const equipment = profile.equipment || {};
 
+  // Starter gear
   if (equipment.weapon === "⚔️ Iron Sword" && bonusType === "dungeonSuccess") {
     bonus += 0.05;
   }
@@ -484,8 +485,23 @@ function getEquipmentBonus(profile, bonusType) {
     bonus += 5;
   }
 
+  // Dungeon gear
+  if (equipment.weapon === "⚔️ Goblin Cleaver" && bonusType === "dungeonSuccess") {
+    bonus += 0.10;
+  }
+
+  if (equipment.armor === "🛡️ Crypt Shield" && bonusType === "dungeonSuccess") {
+    bonus += 0.15;
+  }
+
+  if (equipment.trinket === "💍 Dragonheart Ring" && bonusType === "runeRenown") {
+    bonus += 10;
+  }
+
   return bonus;
 }
+
+
 
 
 
@@ -858,6 +874,26 @@ const dungeonEncounters = {
     "💎 Dragon Hoard",
     "🦴 Ancient Bones"
   ]
+};
+
+const rareEncounterBonuses = {
+  "👑 Goblin King": {
+    goldMultiplier: 2,
+    renownMultiplier: 1,
+    extraLoot: false
+  },
+
+  "☠️ Lich Remnant": {
+    goldMultiplier: 1,
+    renownMultiplier: 2,
+    extraLoot: false
+  },
+
+  "🔥 Elder Dragon": {
+    goldMultiplier: 1,
+    renownMultiplier: 1,
+    extraLoot: true
+  }
 };
 
 const encounterDescriptions = {
@@ -2194,87 +2230,112 @@ if (process.env.BOT_ENV !== "dev") {
 
     let rareEncounter = false;
 
-  if (Math.random() < 0.50) {
+  if (Math.random() < 1.00) {
     rareEncounter = true;
   }
 
   let successChance = dungeon.successChance;
 
   if ((profile.class || "").toLowerCase() === "warrior") {
-    successChance += 0.10;
+    successChance += 0.05;
   }
   successChance += getEquipmentBonus(profile, "dungeonSuccess");
 
-  const success = Math.random() < successChance;
+ const success = Math.random() < successChance;
 
-  if (!success) {
-    saveProfiles();
+if (!success) {
+  saveProfiles();
 
-    const failEmbed = new EmbedBuilder()
-      .setColor("#B91C1C")
-      .setTitle("🏰 Dungeon Failed")
-      .setDescription(`${interaction.user} entered the **Goblin Cave** but was forced to retreat.`)
-      .setFooter({ text: "Valoryn • Rest, recover, return stronger" })
-      .setTimestamp();
+  const failEmbed = new EmbedBuilder()
+    .setColor("#B91C1C")
+    .setTitle("🏰 Dungeon Failed")
+    .setDescription(
+      `${interaction.user} entered the **${dungeonName}** but was forced to retreat.`
+    )
+    .setFooter({ text: "Valoryn • Rest, recover, return stronger" })
+    .setTimestamp();
 
-    return interaction.reply({ embeds: [failEmbed] });
-  }
-
-  let renownReward = Math.floor(Math.random() * 51) + 50;
-  let goldReward = Math.floor(Math.random() * 51) + 25;
-
-  if ((profile.class || "").toLowerCase() === "mage") {
-    renownReward = Math.floor(renownReward * 1.1);
-  }
-
-  if ((profile.class || "").toLowerCase() === "rogue") {
-    goldReward = Math.floor(goldReward * 1.1);
-  }
-
-  const lootTable = dungeonLoot[dungeonName];
-
-  const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
-
-  if (rareEncounter) {
-  goldReward *= 2;
-  renownReward *= 2;
-
-  profile.renown += renownReward;
-  profile.gold += goldReward;
-  profile.inventory.push(loot.item);
-  profile.dungeonsCompleted += 1;
-  
+  return interaction.reply({ embeds: [failEmbed] });
 }
 
-  await checkLevelUp(interaction, profile);
+let renownReward = Math.floor(Math.random() * 51) + 50;
+let goldReward = Math.floor(Math.random() * 51) + 25;
 
-  const unlockedTitles = checkTitles(profile);
-  const unlockedAchievements = checkAchievements(profile);
+if ((profile.class || "").toLowerCase() === "mage") {
+  renownReward = Math.floor(renownReward * 1.1);
+}
 
+if ((profile.class || "").toLowerCase() === "rogue") {
+  goldReward = Math.floor(goldReward * 1.1);
+}
 
-  saveProfiles();
-  const encounterName = rareEncounter
+const lootTable = dungeonLoot[dungeonName];
+const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
+
+const encounterName = rareEncounter
   ? rareDungeonEncounters[dungeonName]
   : encounter;
 
 const encounterText = rareEncounter
-  ? "🌟 Rare Encounter! Rewards doubled!"
+  ? "🌟 Rare Encounter!"
   : encounterDescriptions[encounter];
 
-  let title = "🏰 Dungeon Cleared!";
+let bonusText = "";
+let extraLoot = null;
 
 if (rareEncounter) {
-  title = "🌟 Rare Encounter Cleared!";
+  const bonus = rareEncounterBonuses[encounterName];
+
+  goldReward = Math.floor(goldReward * bonus.goldMultiplier);
+  renownReward = Math.floor(renownReward * bonus.renownMultiplier);
+
+  if (bonus.extraLoot) {
+  do {
+    extraLoot =
+      lootTable[Math.floor(Math.random() * lootTable.length)];
+  } while (extraLoot.item === loot.item && lootTable.length > 1);
+
+  profile.inventory.push(extraLoot.item);
 }
 
-  const dungeonEmbed = new EmbedBuilder()
+  if (encounterName === "👑 Goblin King") {
+    bonusText = "💰 The Goblin King's treasure doubled your gold!";
+  }
+
+  if (encounterName === "☠️ Lich Remnant") {
+    bonusText = "📚 Ancient knowledge doubled your renown!";
+  }
+
+  if (encounterName === "🔥 Elder Dragon") {
+    bonusText = "🐉 The dragon's hoard grants an extra loot roll!";
+  }
+}
+
+profile.renown += renownReward;
+profile.gold += goldReward;
+profile.inventory.push(loot.item);
+profile.dungeonsCompleted += 1;
+
+await checkLevelUp(interaction, profile);
+
+const unlockedTitles = checkTitles(profile);
+const unlockedAchievements = checkAchievements(profile);
+
+saveProfiles();
+
+const title = rareEncounter
+  ? "🌟 Rare Encounter Cleared!"
+  : "🏰 Dungeon Cleared!";
+
+const dungeonEmbed = new EmbedBuilder()
   .setColor("#6D28D9")
-  .setTitle("🏰 Dungeon Cleared!")
+  .setTitle(title)
   .setDescription(
-  `**Dungeon:** ${dungeonName}\n\n` +
-  `**Encounter:** ${encounterName}\n` +
-  `${encounterText}`
-)
+    `**Dungeon:** ${dungeonName}\n\n` +
+    `**Encounter:** ${encounterName}\n` +
+    `${encounterText}\n\n` +
+    `${bonusText || "The dungeon yields its rewards."}`
+  )
   .addFields(
     { name: "✨ Renown", value: `+${renownReward}`, inline: true },
     { name: "🪙 Gold", value: `+${goldReward}`, inline: true },
@@ -2291,11 +2352,19 @@ if (rareEncounter) {
   )
   .setFooter({ text: "Valoryn • The depths remember your name" })
   .setTimestamp();
-  console.log(loot);
 
-  await interaction.reply({ embeds: [dungeonEmbed] });
+if (extraLoot) {
+  dungeonEmbed.addFields({
+    name: "🎁 Bonus Loot",
+    value: `${extraLoot.item}\n⭐ ${extraLoot.rarity}`,
+    inline: false
+  });
 }
 
+console.log(loot);
+
+await interaction.reply({ embeds: [dungeonEmbed] });
+}
 if (interaction.commandName === "help") {
   const helpEmbed = new EmbedBuilder()
     .setColor("#6D28D9")
@@ -2473,61 +2542,79 @@ if (interaction.commandName === "backupstats") {
 }
 
 if (interaction.commandName === "equipment") {
-  createProfile(interaction.user.id);
+  try {
+    createProfile(interaction.user.id);
 
-  const profile = profiles[interaction.user.id];
+    const profile = profiles[interaction.user.id];
 
-const weapon = profile.equipment.weapon;
-const armor = profile.equipment.armor;
-const trinket = profile.equipment.trinket;
+    if (!profile.equipment) {
+      profile.equipment = {
+        weapon: null,
+        armor: null,
+        trinket: null
+      };
+    }
 
-const weaponBonus = weapon && equipmentItems[weapon]
-  ? equipmentItems[weapon].bonus
-  : "No bonus";
+    const equipment = profile.equipment;
 
-const armorBonus = armor && equipmentItems[armor]
-  ? equipmentItems[armor].bonus
-  : "No bonus";
+    const weapon = equipment.weapon;
+    const armor = equipment.armor;
+    const trinket = equipment.trinket;
 
-const trinketBonus = trinket && equipmentItems[trinket]
-  ? equipmentItems[trinket].bonus
-  : "No bonus";
-  const equipmentEmbed = new EmbedBuilder()
-    .setColor("#6D28D9")
-    .setTitle("⚔️ Equipped Gear")
-   .addFields(
-  {
-    name: "⚔️ Weapon",
-    value: weapon
-      ? `${weapon}\n**Bonus:** ${weaponBonus}`
-      : "None Equipped",
-    inline: false
-  },
-  {
-    name: "🛡️ Armor",
-    value: armor
-      ? `${armor}\n**Bonus:** ${armorBonus}`
-      : "None Equipped",
-    inline: false
-  },
-  {
-    name: "💍 Trinket",
-    value: trinket
-      ? `${trinket}\n**Bonus:** ${trinketBonus}`
-      : "None Equipped",
-    inline: false
+    const weaponBonus = weapon && equipmentItems[weapon]
+      ? equipmentItems[weapon].bonus
+      : "No bonus";
+
+    const armorBonus = armor && equipmentItems[armor]
+      ? equipmentItems[armor].bonus
+      : "No bonus";
+
+    const trinketBonus = trinket && equipmentItems[trinket]
+      ? equipmentItems[trinket].bonus
+      : "No bonus";
+
+    const equipmentEmbed = new EmbedBuilder()
+      .setColor("#6D28D9")
+      .setTitle("⚔️ Equipped Gear")
+      .addFields(
+        {
+          name: "⚔️ Weapon",
+          value: weapon ? `${weapon}\n**Bonus:** ${weaponBonus}` : "None Equipped",
+          inline: false
+        },
+        {
+          name: "🛡️ Armor",
+          value: armor ? `${armor}\n**Bonus:** ${armorBonus}` : "None Equipped",
+          inline: false
+        },
+        {
+          name: "💍 Trinket",
+          value: trinket ? `${trinket}\n**Bonus:** ${trinketBonus}` : "None Equipped",
+          inline: false
+        }
+      )
+      .setFooter({ text: "Valoryn • Equipped Relics" });
+
+    await interaction.reply({
+      embeds: [equipmentEmbed],
+      ephemeral: true
+    });
+
+  } catch (error) {
+    console.error("Equipment command error:", error);
+
+    if (!interaction.replied) {
+      await interaction.reply({
+        content: `Equipment command failed: ${error.message}`,
+        ephemeral: true
+      });
+    }
   }
-)
-    .setFooter({ text: "Valoryn • Equipped Relics" });
-
-  await interaction.reply({
-    embeds: [equipmentEmbed],
-    ephemeral: true
-  });
 }
 
 if (interaction.commandName === "equip") {
   createProfile(interaction.user.id);
+  console.log("Equip command reached");
 
   const profile = profiles[interaction.user.id];
 
@@ -2685,8 +2772,6 @@ if (interaction.commandName === "resetdungeoncooldown") {
     ephemeral: true
   });
 }
-
-
 });
 
 client.login(process.env.DISCORD_TOKEN);
