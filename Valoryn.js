@@ -713,10 +713,8 @@ client.once("clientReady", async readyClient => {
   console.log(`Valoryn is online as ${readyClient.user.tag}`);
 
   try {
-    await rest.put(
-  Routes.applicationGuildCommands(
-    process.env.CLIENT_ID,
-  ),
+  await rest.put(
+  Routes.applicationCommands(process.env.CLIENT_ID),
   { body: commands }
 );
 
