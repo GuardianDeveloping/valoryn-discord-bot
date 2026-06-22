@@ -7,6 +7,7 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
+  ActivityType,
   EmbedBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -900,9 +901,20 @@ new SlashCommandBuilder()
 
 const rest = new REST({ version: "10" }).setToken(process.env.DISCORD_TOKEN);
 
+    
+
 client.once("clientReady", async readyClient => {
   console.log(`Valoryn is online as ${readyClient.user.tag}`);
 
+    readyClient.user.setPresence({
+  activities: [
+    {
+      name: "/help | Forge Your Legend",
+      type: ActivityType.Playing
+    }
+  ],
+  status: "online"
+});
   try {
   await rest.put(
   Routes.applicationCommands(process.env.CLIENT_ID),
@@ -1315,62 +1327,7 @@ if (interaction.commandName === "runequiz") {
     });
   }
 
-  const quiz = runeQuizzes[Math.floor(Math.random() * runeQuizzes.length)];
-
-  const quizEmbed = new EmbedBuilder()
-    .setColor("#6D28D9")
-    .setTitle("📜 Rune Puzzle")
-    .setDescription(
-      `The Guild Archivists have uncovered an ancient rune sequence.\n\n` +
-      `# ${quiz.runes}\n\n` +
-      `First adventurer to decipher it wins rewards.`
-    )
-    .setFooter({ text: "Valoryn • Decipher the runes" })
-    .setTimestamp();
-
-  const hintButton = new ButtonBuilder()
-    .setCustomId("rune_hint")
-    .setLabel("Reveal Hint")
-    .setEmoji("💡")
-    .setStyle(ButtonStyle.Secondary);
-
-  const firstLetterButton = new ButtonBuilder()
-    .setCustomId("rune_first_letter")
-    .setLabel("First Letter")
-    .setEmoji("🔤")
-    .setStyle(ButtonStyle.Secondary);
-
-  const statsButton = new ButtonBuilder()
-    .setCustomId("rune_stats")
-    .setLabel("Rune Stats")
-    .setEmoji("📊")
-    .setStyle(ButtonStyle.Secondary);
-
-  const skipButton = new ButtonBuilder()
-    .setCustomId("rune_skip")
-    .setLabel("Skip Puzzle")
-    .setEmoji("⏭️")
-    .setStyle(ButtonStyle.Danger);
-
-  const row = new ActionRowBuilder().addComponents(
-    hintButton,
-    firstLetterButton,
-    statsButton,
-    skipButton
-  );
-
-  const quizMessage = await targetChannel.send({
-    embeds: [quizEmbed],
-    components: [row]
-  });
-
-  activeRuneQuizzes[guildId] = {
-    channelId: targetChannel.id,
-    messageId: quizMessage.id,
-    answer: quiz.answer.toLowerCase(),
-    hint: quiz.hint,
-    startedBy: interaction.user.id
-  };
+  await postRuneQuiz(targetChannel, guildId);
 
   await interaction.reply({
     content: `🔮 Rune puzzle posted in ${targetChannel}.`,
