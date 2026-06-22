@@ -716,12 +716,22 @@ const runeLoot = [
   { item: "🪬 Mystic Charm", rarity: "Rare" }
 ];
 
-const dungeonLoot = [
-  { item: "🦴 Goblin Bone", rarity: "Common" },
-  { item: "🗡️ Rusted Dagger", rarity: "Common" },
-  { item: "💍 Tarnished Ring", rarity: "Uncommon" },
-  { item: "🐉 Dragon Scale", rarity: "Rare" }
-];
+const dungeonLoot = {
+  "Goblin Cave": [
+    { item: "🦴 Goblin Bone", rarity: "Common" },
+    { item: "🗡️ Rusted Dagger", rarity: "Common" },
+    { item: "⚔️ Goblin Cleaver", rarity: "Rare" }
+  ],
+  "Ancient Crypt": [
+    { item: "💍 Tarnished Ring", rarity: "Common" },
+    { item: "📜 Ancient Scroll", rarity: "Common" },
+    { item: "🛡️ Crypt Shield", rarity: "Rare" }
+  ],
+  "Dragon's Lair": [
+    { item: "🐉 Dragon Scale", rarity: "Rare" },
+    { item: "💍 Dragonheart Ring", rarity: "Legendary" }
+  ]
+  };
 
 const itemValues = {
     //questloot
@@ -768,8 +778,132 @@ const equipmentItems = {
   "💍 Rune Ring": {
     slot: "trinket",
     bonus: "+5 rune renown"
+  },
+  //dungeonGear
+
+  "⚔️ Goblin Cleaver": {
+  slot: "weapon",
+  bonus: "+10% Dungeon Success"
+},
+
+"🛡️ Crypt Shield": {
+  slot: "armor",
+  bonus: "+15% Dungeon Success"
+},
+
+"💍 Dragonheart Ring": {
+  slot: "trinket",
+  bonus: "+10 Rune Renown"
+}
+};
+
+const dungeons = {
+  "Goblin Cave": {
+    difficulty: "Easy",
+    successChance: 0.85,
+    goldMin: 10,
+    goldMax: 25,
+    renownMin: 10,
+    renownMax: 25,
+    loot: [
+      "🦴 Goblin Bone",
+      "🗡️ Rusted Dagger"
+    ]
+  },
+
+  "Ancient Crypt": {
+    difficulty: "Medium",
+    successChance: 0.70,
+    goldMin: 25,
+    goldMax: 50,
+    renownMin: 25,
+    renownMax: 50,
+    loot: [
+      "💍 Tarnished Ring",
+      "📜 Ancient Scroll"
+    ]
+  },
+
+  "Dragon's Lair": {
+    difficulty: "Hard",
+    successChance: 0.50,
+    goldMin: 50,
+    goldMax: 100,
+    renownMin: 50,
+    renownMax: 100,
+    loot: [
+      "🐉 Dragon Scale"
+    ]
   }
 };
+
+const dungeonEncounters = {
+  "Goblin Cave": [
+    "🏹 Goblin Scout",
+    "💀 Goblin Champion",
+    "💰 Hidden Treasure",
+    "🕸️ Cave Spider"
+  ],
+
+  "Ancient Crypt": [
+    "👻 Lost Spirit",
+    "⚰️ Restless Skeleton",
+    "📜 Forgotten Archive",
+    "🕯️ Haunted Altar"
+  ],
+
+  "Dragon's Lair": [
+    "🐉 Dragon Whelp",
+    "🔥 Lava Elemental",
+    "💎 Dragon Hoard",
+    "🦴 Ancient Bones"
+  ]
+};
+
+const encounterDescriptions = {
+  "🏹 Goblin Scout":
+    "A goblin scout spots your party and sounds the alarm.",
+
+  "💀 Goblin Champion":
+    "A heavily armored goblin champion blocks your path.",
+
+  "💰 Hidden Treasure":
+    "You discover a forgotten chest tucked into the shadows.",
+
+  "🕸️ Cave Spider":
+    "A giant spider descends from the cavern ceiling.",
+
+  "👻 Lost Spirit":
+    "A wandering spirit drifts silently through the crypt.",
+
+  "⚰️ Restless Skeleton":
+    "Ancient bones rise from the dust and shamble forward.",
+
+  "📜 Forgotten Archive":
+    "You uncover shelves filled with forgotten lore.",
+
+  "🕯️ Haunted Altar":
+    "An eerie altar hums with dark magic.",
+
+  "🐉 Dragon Whelp":
+    "A young dragon snaps and snarls at intruders.",
+
+  "🔥 Lava Elemental":
+    "Molten rock gathers into a living creature.",
+
+  "💎 Dragon Hoard":
+    "A pile of treasure glitters in the darkness.",
+
+  "🦴 Ancient Bones":
+    "Massive skeletal remains tell of ancient battles."
+};
+
+const rareDungeonEncounters = {
+  "Goblin Cave": "👑 Goblin King",
+  "Ancient Crypt": "☠️ Lich Remnant",
+  "Dragon's Lair": "🔥 Elder Dragon"
+};
+
 
 const staffCategories = [
   {
@@ -954,9 +1088,20 @@ const commands = [
       )
   ),
 
-  new SlashCommandBuilder()
-    .setName("dungeon")
-    .setDescription("Enter a dungeon for rewards"),
+new SlashCommandBuilder()
+  .setName("dungeon")
+  .setDescription("Explore a dangerous dungeon")
+  .addStringOption(option =>
+    option
+      .setName("dungeon")
+      .setDescription("Choose a dungeon")
+      .setRequired(true)
+      .addChoices(
+        { name: "🏰 Goblin Cave (Easy)", value: "Goblin Cave" },
+        { name: "⚰️ Ancient Crypt (Medium)", value: "Ancient Crypt" },
+        { name: "🐉 Dragon's Lair (Hard)", value: "Dragon's Lair" }
+      )
+  ),
 
   new SlashCommandBuilder()
   .setName("help")
@@ -1071,6 +1216,16 @@ new SlashCommandBuilder()
 new SlashCommandBuilder()
   .setName("backupstats")
   .setDescription("Create a backup of Valoryn data"),
+
+  new SlashCommandBuilder()
+  .setName("resetdungeoncooldown")
+  .setDescription("Reset a player's dungeon cooldown")
+  .addUserOption(option =>
+    option
+      .setName("user")
+      .setDescription("Player")
+      .setRequired(true)
+  )
 
 
 
@@ -1998,15 +2153,27 @@ if (interaction.commandName === "use") {
 if (interaction.commandName === "dungeon") {
   createProfile(interaction.user.id);
 
-  const profile = profiles[interaction.user.id];
+    const profile = profiles[interaction.user.id];
 
+    const dungeonName = interaction.options.getString("dungeon");
+    const dungeon = dungeons[dungeonName];
+
+    if (!dungeon) {
+      return interaction.reply({
+        content: "That dungeon does not exist.",
+        ephemeral: true
+      });
+    }
   if (!profile.inventory) profile.inventory = [];
   if (!profile.dungeonsCompleted) profile.dungeonsCompleted = 0;
   if (!profile.lastDungeon) profile.lastDungeon = 0;
 
+  
   const now = Date.now();
   const cooldown = 10 * 60 * 1000;
 
+  // Skip cooldown entirely on Dev
+if (process.env.BOT_ENV !== "dev") {
   if (now - profile.lastDungeon < cooldown) {
     const timeLeft = cooldown - (now - profile.lastDungeon);
     const minutes = Math.ceil(timeLeft / (1000 * 60));
@@ -2016,10 +2183,22 @@ if (interaction.commandName === "dungeon") {
       ephemeral: true
     });
   }
+}
 
   profile.lastDungeon = now;
 
-  let successChance = 0.60;
+  const encounterList = dungeonEncounters[dungeonName];
+
+  const encounter =
+    encounterList[Math.floor(Math.random() * encounterList.length)];
+
+    let rareEncounter = false;
+
+  if (Math.random() < 0.50) {
+    rareEncounter = true;
+  }
+
+  let successChance = dungeon.successChance;
 
   if ((profile.class || "").toLowerCase() === "warrior") {
     successChance += 0.10;
@@ -2052,32 +2231,67 @@ if (interaction.commandName === "dungeon") {
     goldReward = Math.floor(goldReward * 1.1);
   }
 
-  const loot = dungeonLoot[Math.floor(Math.random() * dungeonLoot.length)];
+  const lootTable = dungeonLoot[dungeonName];
+
+  const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
+
+  if (rareEncounter) {
+  goldReward *= 2;
+  renownReward *= 2;
 
   profile.renown += renownReward;
   profile.gold += goldReward;
   profile.inventory.push(loot.item);
   profile.dungeonsCompleted += 1;
+  
+}
 
   await checkLevelUp(interaction, profile);
 
   const unlockedTitles = checkTitles(profile);
   const unlockedAchievements = checkAchievements(profile);
 
+
   saveProfiles();
+  const encounterName = rareEncounter
+  ? rareDungeonEncounters[dungeonName]
+  : encounter;
+
+const encounterText = rareEncounter
+  ? "🌟 Rare Encounter! Rewards doubled!"
+  : encounterDescriptions[encounter];
+
+  let title = "🏰 Dungeon Cleared!";
+
+if (rareEncounter) {
+  title = "🌟 Rare Encounter Cleared!";
+}
 
   const dungeonEmbed = new EmbedBuilder()
-    .setColor("#6D28D9")
-    .setTitle("🏰 Dungeon Cleared!")
-    .setDescription(`${interaction.user} conquered the **Goblin Cave**.`)
-    .addFields(
-      { name: "✨ Renown", value: `+${renownReward}`, inline: true },
-      { name: "🪙 Gold", value: `+${goldReward}`, inline: true },
-      { name: "🎒 Loot", value: `${loot.item}\n⭐ ${loot.rarity}`, inline: false },
-      { name: "🏰 Dungeons Cleared", value: profile.dungeonsCompleted.toString(), inline: true }
-    )
-    .setFooter({ text: "Valoryn • The depths remember your name" })
-    .setTimestamp();
+  .setColor("#6D28D9")
+  .setTitle("🏰 Dungeon Cleared!")
+  .setDescription(
+  `**Dungeon:** ${dungeonName}\n\n` +
+  `**Encounter:** ${encounterName}\n` +
+  `${encounterText}`
+)
+  .addFields(
+    { name: "✨ Renown", value: `+${renownReward}`, inline: true },
+    { name: "🪙 Gold", value: `+${goldReward}`, inline: true },
+    {
+      name: "🎒 Loot",
+      value: `${loot.item}\n⭐ ${loot.rarity}`,
+      inline: false
+    },
+    {
+      name: "🏰 Dungeons Cleared",
+      value: profile.dungeonsCompleted.toString(),
+      inline: true
+    }
+  )
+  .setFooter({ text: "Valoryn • The depths remember your name" })
+  .setTimestamp();
+  console.log(loot);
 
   await interaction.reply({ embeds: [dungeonEmbed] });
 }
@@ -2446,6 +2660,28 @@ if (interaction.commandName === "givetitle") {
 
   await interaction.reply({
     content: `🏆 Granted **${title}** to ${user}.`,
+    ephemeral: true
+  });
+}
+
+if (interaction.commandName === "resetdungeoncooldown") {
+  if (!interaction.memberPermissions.has("Administrator")) {
+    return interaction.reply({
+      content: "Only administrators may use this command.",
+      ephemeral: true
+    });
+  }
+
+  const user = interaction.options.getUser("user");
+
+  createProfile(user.id);
+
+  profiles[user.id].lastDungeon = 0;
+
+  saveProfiles();
+
+  await interaction.reply({
+    content: `⏳ Reset dungeon cooldown for ${user}.`,
     ephemeral: true
   });
 }
