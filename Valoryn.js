@@ -2069,8 +2069,9 @@ if (interaction.commandName === "backupstats") {
     );
 
     await interaction.reply({
-      content: `✅ Backup created.\n\`${backupFile}\``,
-      ephemeral: true
+    content: "✅ Backup created.",
+    files: [backupFile],
+    ephemeral: true
     });
 
   } catch (error) {
