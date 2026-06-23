@@ -2464,10 +2464,10 @@ let rareEncounter = false;
 
 const encounterRoll = Math.random();
 
-if (encounterRoll < 1.00) {
+if (encounterRoll < 0.01) {
   bossEncounter = true;
 }
-else if (encounterRoll < 0.05) {
+else if (encounterRoll < 0.25) {
   rareEncounter = true;
 }
 else if (encounterRoll < 0.20) {
