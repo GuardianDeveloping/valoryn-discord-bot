@@ -157,6 +157,8 @@ function createProfile(userId) {
   if (!profile.lastXp) profile.lastXp = 0;
   if (!profile.dungeonsCompleted) profile.dungeonsCompleted = 0;
   if (!profile.lastDungeon) profile.lastDungeon = 0;
+  if (!profile.bossesDefeated) profile.bossesDefeated = 0;
+
 
   if (!profile.questMessages) profile.questMessages = 0;
   if (!profile.questRunesSolved) profile.questRunesSolved = 0;
@@ -358,6 +360,33 @@ if ((profile.gold || 0) >= 5000 && unlockAchievement(profile, "Wealthy")) {
 if ((profile.questBoardsCompleted || 0) >= 100 && unlockAchievement(profile, "Guild Veteran")) {
   unlocked.push("Guild Veteran");
 }
+if (
+  profile.bossesDefeated >= 1 &&
+  !profile.achievements.includes("First Blood")
+) {
+  profile.achievements.push("First Blood");
+}
+
+if (
+  profile.bossesDefeated >= 10 &&
+  !profile.achievements.includes("Boss Hunter")
+) {
+  profile.achievements.push("Boss Hunter");
+}
+
+if (
+  profile.bossesDefeated >= 50 &&
+  !profile.achievements.includes("Legendary Hero")
+) {
+  profile.achievements.push("Legendary Hero");
+}
+
+if (
+  profile.bossesDefeated >= 100 &&
+  !profile.achievements.includes("Worldbreaker")
+) {
+  profile.achievements.push("Worldbreaker");
+}
 
   return unlocked;
 }
@@ -498,7 +527,56 @@ function getEquipmentBonus(profile, bonusType) {
     bonus += 10;
   }
 
+
+  //BossDrops
+  if (
+  equipment.trinket === "👑 Goblin Crown" &&
+  bonusType === "dungeonSuccess"
+) {
+  bonus += 0.20;
+}
+
+if (
+  equipment.trinket === "☠️ Crown of Morveth" &&
+  bonusType === "runeRenown"
+) {
+  bonus += 20;
+}
+
+if (
+  equipment.weapon === "🔥 Emberfang's Fang" &&
+  bonusType === "dungeonSuccess"
+) {
+  bonus += 0.25;
+}
+
+if (
+  equipment.armor === "🛡️ Emberfang Scaleplate" &&
+  bonusType === "dungeonSuccess"
+) {
+  bonus += 0.25;
+}
+
   return bonus;
+}
+
+function checkBossAchievements(profile) {
+ if (!profile.achievements) profile.achievements = [];
+
+
+  const unlocked = [];
+
+  for (const achievement of bossAchievements) {
+    if (
+      profile.bossesDefeated >= achievement.requirement &&
+      !profile.achievements.includes(achievement.name)
+    ) {
+      profile.achievements.push(achievement.name);
+      unlocked.push(achievement.name);
+    }
+  }
+
+  return unlocked;
 }
 
 
@@ -714,7 +792,13 @@ const allAchievements = [
   "Wealthy",
   "Guild Hero",
   "Guild Veteran",
-  "Rune Champion"
+  "Rune Champion",
+  "First Blood",
+  "Boss Hunter",
+  "Legendary Hero",
+  "Worldbreaker",
+
+
 ];
 
 
@@ -810,7 +894,26 @@ const equipmentItems = {
 "💍 Dragonheart Ring": {
   slot: "trinket",
   bonus: "+10 Rune Renown"
-}
+},
+"👑 Goblin Crown": {
+  slot: "trinket",
+  bonus: "+20% Dungeon Success"
+},
+
+"☠️ Crown of Morveth": {
+  slot: "trinket",
+  bonus: "+20 Rune Renown"
+},
+
+"🔥 Emberfang's Fang": {
+  slot: "weapon",
+  bonus: "+25% Dungeon Success"
+},
+
+"🛡️ Emberfang Scaleplate": {
+  slot: "armor",
+  bonus: "+25% Dungeon Success"
+},
 };
 
 const dungeons = {
@@ -973,6 +1076,95 @@ const eliteEncounterDescriptions = {
   "🐲 Dragon Knight":
     "A legendary knight sworn to the dragons blocks your path."
 };
+
+const dungeonBosses = {
+  "Goblin Cave": "👑 Goblin Warlord",
+  "Ancient Crypt": "☠️ Lich King Morveth",
+  "Dragon's Lair": "🔥 Emberfang the Ancient"
+};
+
+const bossDescriptions = {
+  "👑 Goblin Warlord":
+    "The ruler of the goblin tribes emerges to defend his domain.",
+
+  "☠️ Lich King Morveth":
+    "An ancient king of death awakens from eternal slumber.",
+
+  "🔥 Emberfang the Ancient":
+    "A legendary dragon stirs beneath the mountain."
+};
+
+const bossBonuses = {
+  "👑 Goblin Warlord": {
+    goldMultiplier: 3,
+    renownMultiplier: 3,
+    extraLoot: true
+  },
+
+  "☠️ Lich King Morveth": {
+    goldMultiplier: 2,
+    renownMultiplier: 4,
+    extraLoot: true
+  },
+
+  "🔥 Emberfang the Ancient": {
+    goldMultiplier: 4,
+    renownMultiplier: 4,
+    extraLoot: true
+  }
+};
+
+const bossLoot = {
+  "👑 Goblin Warlord": [
+    {
+      item: "👑 Goblin Crown",
+      rarity: "Legendary"
+    }
+  ],
+
+  "☠️ Lich King Morveth": [
+    {
+      item: "☠️ Crown of Morveth",
+      rarity: "Legendary"
+    }
+  ],
+
+  "🔥 Emberfang the Ancient": [
+    {
+      item: "🔥 Emberfang's Fang",
+      rarity: "Legendary"
+    },
+    {
+      item: "🛡️ Emberfang Scaleplate",
+      rarity: "Legendary"
+    }
+  ]
+};
+
+const bossTitles = {
+  "👑 Goblin Warlord": "Goblinbane",
+  "☠️ Lich King Morveth": "Deathwalker",
+  "🔥 Emberfang the Ancient": "Dragonslayer"
+};
+
+const bossAchievements = [
+  {
+    name: "👑 First Blood",
+    requirement: 1
+  },
+  {
+    name: "⚔️ Boss Hunter",
+    requirement: 10
+  },
+  {
+    name: "🏆 Legendary Hero",
+    requirement: 50
+  },
+  {
+    name: "🔥 Worldbreaker",
+    requirement: 100
+  }
+];
 
 
 const staffCategories = [
@@ -1586,6 +1778,7 @@ client.on("interactionCreate", async interaction => {
         { name: "✨ Renown", value: `${profile.renown} / ${needed}`, inline: true },
         { name: "🪙 Gold", value: profile.gold.toString(), inline: true },
         { name: "🛡️ Class", value: profile.class, inline: true },
+        { name: "👑 Bosses Defeated", value: (profile.bossesDefeated || 0).toString(), inline: true },
         {
   name: "📜 Title",
   value: profile.activeTitle || profile.title || "Wanderer",
@@ -1996,6 +2189,9 @@ if (interaction.commandName === "achievements") {
   createProfile(interaction.user.id);
 
   const profile = profiles[interaction.user.id];
+  const unlockedAchievements = checkAchievements(profile);
+const unlockedBossAchievements = checkBossAchievements(profile);
+saveProfiles();
   if (!profile.achievements) profile.achievements = [];
 
   const achievementList = allAchievements
@@ -2262,14 +2458,19 @@ if (process.env.BOT_ENV !== "dev") {
   const encounter =
     encounterList[Math.floor(Math.random() * encounterList.length)];
 
+let bossEncounter = false;
 let eliteEncounter = false;
 let rareEncounter = false;
 
 const encounterRoll = Math.random();
 
-if (encounterRoll < 0.05) {
+if (encounterRoll < 1.00) {
+  bossEncounter = true;
+}
+else if (encounterRoll < 0.05) {
   rareEncounter = true;
-} else if (encounterRoll < 1.00) {
+}
+else if (encounterRoll < 0.20) {
   eliteEncounter = true;
 }
 
@@ -2321,6 +2522,10 @@ if (rareEncounter) {
   encounterName = rareDungeonEncounters[dungeonName];
 }
 
+if (bossEncounter) {
+  encounterName = dungeonBosses[dungeonName];
+}
+
 let encounterText = encounterDescriptions[encounter];
 
 if (eliteEncounter) {
@@ -2331,8 +2536,64 @@ if (rareEncounter) {
   encounterText = rareEncounterDescriptions[encounterName];
 }
 
+if (bossEncounter) {
+  encounterText = bossDescriptions[encounterName];
+}
+
 let bonusText = "";
 let extraLoot = null;
+let bossItem = null;
+
+
+if (bossEncounter) {
+
+  bonusText = "👑 A dungeon boss has been defeated!";
+  if (!profile.bossesDefeated) {
+    profile.bossesDefeated = 0;
+  }
+
+  profile.bossesDefeated += 1;
+
+  newBossAchievements = checkBossAchievements(profile);
+
+    if (newBossAchievements.length > 0) {
+  bonusText +=
+    "\n\n🏅 Achievement Unlocked:\n" +
+    newBossAchievements.join("\n");
+}
+
+  const bonus = bossBonuses[encounterName];
+
+  goldReward = Math.floor(goldReward * bonus.goldMultiplier);
+  renownReward = Math.floor(renownReward * bonus.renownMultiplier);
+
+  
+
+  const bossLootTable = bossLoot[encounterName];
+
+  bossItem =
+    bossLootTable[Math.floor(Math.random() * bossLootTable.length)];
+
+  profile.inventory.push(bossItem.item);
+
+  const titleReward = bossTitles[encounterName];
+
+  if (!profile.titles) profile.titles = [];
+
+  if (!profile.titles.includes(titleReward)) {
+    profile.titles.push(titleReward);
+    bonusText += `\n🏆 New Title Unlocked: ${titleReward}`;
+  }
+
+  do {
+    extraLoot = lootTable[Math.floor(Math.random() * lootTable.length)];
+  } while (
+    extraLoot.item === loot.item &&
+    lootTable.length > 1
+  );
+  
+  profile.inventory.push(extraLoot.item);
+}
 
 if (eliteEncounter) {
   const bonus = eliteEncounterBonuses[encounterName];
@@ -2402,6 +2663,10 @@ if (rareEncounter) {
   title = "🌟 Rare Encounter Cleared!";
 }
 
+if (bossEncounter) {
+  title = "👑 Boss Defeated!";
+}
+
 let embedColor = "#6D28D9"; // Normal = Purple
 
 if (eliteEncounter) {
@@ -2410,6 +2675,10 @@ if (eliteEncounter) {
 
 if (rareEncounter) {
   embedColor = "#FBBF24"; // Rare = Gold
+}
+
+if (bossEncounter) {
+  embedColor = "#10B981";
 }
 
 const dungeonEmbed = new EmbedBuilder()
@@ -2433,10 +2702,23 @@ const dungeonEmbed = new EmbedBuilder()
       name: "🏰 Dungeons Cleared",
       value: profile.dungeonsCompleted.toString(),
       inline: true
-    }
+    },
+    {
+  name: "👑 Bosses Defeated",
+  value: (profile.bossesDefeated || 0).toString(),
+  inline: true
+}
   )
   .setFooter({ text: "Valoryn • The depths remember your name" })
   .setTimestamp();
+if (bossItem) {
+  dungeonEmbed.addFields({
+    name: "👑 Boss Reward",
+    value: `${bossItem.item}\n⭐ ${bossItem.rarity}`,
+    inline: false
+  });
+}
+
 
 if (extraLoot) {
   dungeonEmbed.addFields({
@@ -2445,6 +2727,7 @@ if (extraLoot) {
     inline: false
   });
 }
+
 
 console.log(loot);
 
