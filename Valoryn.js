@@ -940,6 +940,40 @@ const rareDungeonEncounters = {
   "Dragon's Lair": "🔥 Elder Dragon"
 };
 
+const eliteDungeonEncounters = {
+  "Goblin Cave": "💀 Elite Goblin Champion",
+  "Ancient Crypt": "⚔️ Crypt Warden",
+  "Dragon's Lair": "🐲 Dragon Knight"
+};
+
+const eliteEncounterBonuses = {
+  "💀 Elite Goblin Champion": {
+    goldMultiplier: 1.25,
+    renownMultiplier: 1.25
+  },
+
+  "⚔️ Crypt Warden": {
+    goldMultiplier: 1.10,
+    renownMultiplier: 1.50
+  },
+
+  "🐲 Dragon Knight": {
+    goldMultiplier: 1.50,
+    renownMultiplier: 1.50
+  }
+};
+
+const eliteEncounterDescriptions = {
+  "💀 Elite Goblin Champion":
+    "A battle-hardened goblin champion challenges all who enter the cave.",
+
+  "⚔️ Crypt Warden":
+    "An ancient guardian rises to defend the secrets of the crypt.",
+
+  "🐲 Dragon Knight":
+    "A legendary knight sworn to the dragons blocks your path."
+};
+
 
 const staffCategories = [
   {
@@ -2228,11 +2262,16 @@ if (process.env.BOT_ENV !== "dev") {
   const encounter =
     encounterList[Math.floor(Math.random() * encounterList.length)];
 
-    let rareEncounter = false;
+let eliteEncounter = false;
+let rareEncounter = false;
 
-  if (Math.random() < 1.00) {
-    rareEncounter = true;
-  }
+const encounterRoll = Math.random();
+
+if (encounterRoll < 0.05) {
+  rareEncounter = true;
+} else if (encounterRoll < 1.00) {
+  eliteEncounter = true;
+}
 
   let successChance = dungeon.successChance;
 
@@ -2272,16 +2311,47 @@ if ((profile.class || "").toLowerCase() === "rogue") {
 const lootTable = dungeonLoot[dungeonName];
 const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
 
-const encounterName = rareEncounter
-  ? rareDungeonEncounters[dungeonName]
-  : encounter;
+let encounterName = encounter;
 
-const encounterText = rareEncounter
-  ? "🌟 Rare Encounter!"
-  : encounterDescriptions[encounter];
+if (eliteEncounter) {
+  encounterName = eliteDungeonEncounters[dungeonName];
+}
+
+if (rareEncounter) {
+  encounterName = rareDungeonEncounters[dungeonName];
+}
+
+let encounterText = encounterDescriptions[encounter];
+
+if (eliteEncounter) {
+  encounterText = eliteEncounterDescriptions[encounterName];
+}
+
+if (rareEncounter) {
+  encounterText = rareEncounterDescriptions[encounterName];
+}
 
 let bonusText = "";
 let extraLoot = null;
+
+if (eliteEncounter) {
+  const bonus = eliteEncounterBonuses[encounterName];
+
+  goldReward = Math.floor(goldReward * bonus.goldMultiplier);
+  renownReward = Math.floor(renownReward * bonus.renownMultiplier);
+
+  if (encounterName === "💀 Elite Goblin Champion") {
+    bonusText = "⚔️ The champion's treasure increased your rewards!";
+  }
+
+  if (encounterName === "⚔️ Crypt Warden") {
+    bonusText = "📚 The crypt's secrets increased your renown!";
+  }
+
+  if (encounterName === "🐲 Dragon Knight") {
+    bonusText = "🔥 The dragon knight's hoard enriched your rewards!";
+  }
+}
 
 if (rareEncounter) {
   const bonus = rareEncounterBonuses[encounterName];
@@ -2290,13 +2360,12 @@ if (rareEncounter) {
   renownReward = Math.floor(renownReward * bonus.renownMultiplier);
 
   if (bonus.extraLoot) {
-  do {
-    extraLoot =
-      lootTable[Math.floor(Math.random() * lootTable.length)];
-  } while (extraLoot.item === loot.item && lootTable.length > 1);
+    do {
+      extraLoot = lootTable[Math.floor(Math.random() * lootTable.length)];
+    } while (extraLoot.item === loot.item && lootTable.length > 1);
 
-  profile.inventory.push(extraLoot.item);
-}
+    profile.inventory.push(extraLoot.item);
+  }
 
   if (encounterName === "👑 Goblin King") {
     bonusText = "💰 The Goblin King's treasure doubled your gold!";
@@ -2323,12 +2392,28 @@ const unlockedAchievements = checkAchievements(profile);
 
 saveProfiles();
 
-const title = rareEncounter
-  ? "🌟 Rare Encounter Cleared!"
-  : "🏰 Dungeon Cleared!";
+let title = "🏰 Dungeon Cleared!";
+
+if (eliteEncounter) {
+  title = "💀 Elite Encounter Cleared!";
+}
+
+if (rareEncounter) {
+  title = "🌟 Rare Encounter Cleared!";
+}
+
+let embedColor = "#6D28D9"; // Normal = Purple
+
+if (eliteEncounter) {
+  embedColor = "#DC2626"; // Elite = Red
+}
+
+if (rareEncounter) {
+  embedColor = "#FBBF24"; // Rare = Gold
+}
 
 const dungeonEmbed = new EmbedBuilder()
-  .setColor("#6D28D9")
+  .setColor(embedColor)
   .setTitle(title)
   .setDescription(
     `**Dungeon:** ${dungeonName}\n\n` +
