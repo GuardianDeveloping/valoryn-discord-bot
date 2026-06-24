@@ -53,6 +53,8 @@ db.prepare(`
 
 let profiles = {};
 let serverSettings = {};
+let activeRuneQuizzes = {};
+let activeDungeonParties = {};
 
 const profileRows = db.prepare("SELECT userId, data FROM profiles").all();
 
@@ -91,8 +93,6 @@ function saveServerSettings() {
 }
 
 const path = require("path");
-
-let activeRuneQuizzes = {};
 
 function createProfile(userId) {
   if (!profiles[userId]) {
@@ -158,6 +158,8 @@ function createProfile(userId) {
   if (!profile.dungeonsCompleted) profile.dungeonsCompleted = 0;
   if (!profile.lastDungeon) profile.lastDungeon = 0;
   if (!profile.bossesDefeated) profile.bossesDefeated = 0;
+  if (!profile.partyDungeonsCompleted) profile.partyDungeonsCompleted = 0;
+profile.partyDungeonsCompleted += 1;
 
 
   if (!profile.questMessages) profile.questMessages = 0;
@@ -579,6 +581,24 @@ function checkBossAchievements(profile) {
   return unlocked;
 }
 
+function checkPartyAchievements(profile) {
+  if (!profile.achievements) profile.achievements = [];
+
+  const unlocked = [];
+
+  for (const achievement of partyAchievements) {
+    if (
+      (profile.partyDungeonsCompleted || 0) >= achievement.requirement &&
+      !profile.achievements.includes(achievement.name)
+    ) {
+      profile.achievements.push(achievement.name);
+      unlocked.push(achievement.name);
+    }
+  }
+
+  return unlocked;
+}
+
 
 
 
@@ -793,6 +813,10 @@ const allAchievements = [
   "Guild Hero",
   "Guild Veteran",
   "Rune Champion",
+  "🤝 First Fellowship",
+"⚔️ Adventuring Crew",
+"🏰 Guild Veterans",
+"👑 Unbreakable Bond",
   "First Blood",
   "Boss Hunter",
   "Legendary Hero",
@@ -1043,6 +1067,17 @@ const rareDungeonEncounters = {
   "Dragon's Lair": "🔥 Elder Dragon"
 };
 
+const rareEncounterDescriptions = {
+  "👑 Goblin King":
+    "The ruler of the goblin tribes emerges from the shadows to defend his kingdom.",
+
+  "☠️ Lich Remnant":
+    "Ancient necromantic power stirs within the crypt as a forgotten horror awakens.",
+
+  "🔥 Elder Dragon":
+    "An ancient dragon awakens from centuries of slumber and fixes its gaze upon you."
+};
+
 const eliteDungeonEncounters = {
   "Goblin Cave": "💀 Elite Goblin Champion",
   "Ancient Crypt": "⚔️ Crypt Warden",
@@ -1164,6 +1199,13 @@ const bossAchievements = [
     name: "🔥 Worldbreaker",
     requirement: 100
   }
+];
+
+const partyAchievements = [
+  { name: "🤝 First Fellowship", requirement: 1 },
+  { name: "⚔️ Adventuring Crew", requirement: 10 },
+  { name: "🏰 Guild Veterans", requirement: 50 },
+  { name: "👑 Unbreakable Bond", requirement: 100 }
 ];
 
 
@@ -1457,6 +1499,20 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
 
+ new SlashCommandBuilder()
+  .setName("partydungeon")
+  .setDescription("Create a party dungeon")
+  .addStringOption(option =>
+    option
+      .setName("dungeon")
+      .setDescription("Choose a dungeon")
+      .setRequired(true)
+      .addChoices(
+        { name: "🏰 Goblin Cave", value: "Goblin Cave" },
+        { name: "⚰️ Ancient Crypt", value: "Ancient Crypt" },
+        { name: "🐉 Dragon's Lair", value: "Dragon's Lair" }
+      )
+  ),
 
 
   //Utility stuff
@@ -1689,6 +1745,7 @@ client.on("interactionCreate", async interaction => {
   if (interaction.isButton()) {
   const guildId = interaction.guild.id;
   const activeRuneQuiz = activeRuneQuizzes[guildId];
+   const party = activeDungeonParties[guildId];
   if (interaction.customId === "rune_hint") {
     if (!activeRuneQuiz) {
       return interaction.reply({
@@ -1757,7 +1814,131 @@ client.on("interactionCreate", async interaction => {
 
     return interaction.reply({ embeds: [statsEmbed] });
     }
+    if (interaction.customId === "join_party_dungeon") {
+    if (!party) {
+      return interaction.reply({
+        content: "There is no active party dungeon.",
+        ephemeral: true
+      });
+    }
+
+    if (party.players.includes(interaction.user.id)) {
+      return interaction.reply({
+        content: "You are already in this party.",
+        ephemeral: true
+      });
+    }
+
+    if (party.players.length >= 4) {
+      return interaction.reply({
+        content: "This party is already full.",
+        ephemeral: true
+      });
+    }
+
+    party.players.push(interaction.user.id);
+
+    const memberList = party.players.map(id => `<@${id}>`).join("\n");
+
+    const updatedEmbed = new EmbedBuilder()
+      .setColor("#6D28D9")
+      .setTitle("🏰 Party Dungeon Created")
+      .setDescription(
+        `**Dungeon:** ${party.dungeonName}\n` +
+        `**Leader:** <@${party.leaderId}>\n\n` +
+        `**Party Members:**\n${memberList}\n\n` +
+        `Players: **${party.players.length}/4**`
+      )
+      .setFooter({ text: "Valoryn • Gather your party" })
+      .setTimestamp();
+
+    return interaction.update({
+      embeds: [updatedEmbed]
+    });
+  }
+
+  if (interaction.customId === "start_party_dungeon") {
+    if (!party) {
+      return interaction.reply({
+        content: "There is no active party dungeon.",
+        ephemeral: true
+      });
+    }
+
+    if (interaction.user.id !== party.leaderId) {
+      return interaction.reply({
+        content: "Only the party leader can start the dungeon.",
+        ephemeral: true
+      });
+    }
+
+    const dungeon = dungeons[party.dungeonName];
+    const lootTable = dungeonLoot[party.dungeonName];
+
+    let results = "";
+
+for (const playerId of party.players) {
+  createProfile(playerId);
+
+  const profile = profiles[playerId];
+
+  if (!profile.inventory) profile.inventory = [];
+
+  const partyBonus = 1 + ((party.players.length - 1) * 0.10);
+
+  let goldReward = Math.floor(Math.random() * 31) + 20;
+  let renownReward = Math.floor(Math.random() * 31) + 20;
+
+  goldReward = Math.floor(goldReward * partyBonus);
+  renownReward = Math.floor(renownReward * partyBonus);
+
+  const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
+
+  profile.gold += goldReward;
+  profile.renown += renownReward;
+  profile.inventory.push(loot.item);
+
+  if (!profile.partyDungeonsCompleted) profile.partyDungeonsCompleted = 0;
+  profile.partyDungeonsCompleted += 1;
+
+  const unlockedPartyAchievements = checkPartyAchievements(profile);
+
+  for (const achievement of unlockedPartyAchievements) {
+    results += `🏅 Achievement Unlocked: **${achievement}**\n`;
+  }
+
+  await checkLevelUp(interaction, profile);
+
+  results +=
+    `<@${playerId}>\n` +
+    `✨ +${renownReward} Renown | 🪙 +${goldReward} Gold\n` +
+    `🎒 ${loot.item} (${loot.rarity})\n\n`;
 }
+
+    saveProfiles();
+
+    const completeEmbed = new EmbedBuilder()
+      .setColor("#FBBF24")
+      .setTitle("🏰 Party Dungeon Cleared!")
+      .setDescription(
+        `**Dungeon:** ${party.dungeonName}\n\n` +
+        `**Adventurers:**\n${party.players.map(id => `<@${id}>`).join("\n")}\n\n` +
+        `**Rewards:**\n${results}`
+      )
+      .setFooter({ text: "Valoryn • Victory belongs to the party" })
+      .setTimestamp();
+
+    delete activeDungeonParties[guildId];
+
+    return interaction.update({
+      embeds: [completeEmbed],
+      components: []
+    });
+  }
+
+}
+
+
 
   if (!interaction.isChatInputCommand()) return;
 
@@ -1765,29 +1946,73 @@ client.on("interactionCreate", async interaction => {
     createProfile(interaction.user.id);
 
     const profile = profiles[interaction.user.id];
-    const needed = renownNeeded(profile.level);
     if (!profile.achievements) profile.achievements = [];
+    if (!profile.equipment) { profile.equipment = {};}
 
-    const profileEmbed = new EmbedBuilder()
-      .setColor("#6D28D9")
-      .setTitle("⚔️ Adventurer Profile")
-      .setThumbnail(interaction.user.displayAvatarURL())
-      .setDescription(`${interaction.user} stands before the guild.`)
-      .addFields(
-        { name: "🏅 Level", value: profile.level.toString(), inline: true },
-        { name: "✨ Renown", value: `${profile.renown} / ${needed}`, inline: true },
-        { name: "🪙 Gold", value: profile.gold.toString(), inline: true },
-        { name: "🛡️ Class", value: profile.class, inline: true },
-        { name: "👑 Bosses Defeated", value: (profile.bossesDefeated || 0).toString(), inline: true },
-        {
-  name: "📜 Title",
-  value: profile.activeTitle || profile.title || "Wanderer",
-  inline: true
+    const weapon =
+    profile.equipment.weapon || "None";
+
+  const armor =
+    profile.equipment.armor || "None";
+
+  const trinket =
+    profile.equipment.trinket || "None";
+
+  const renownNeeded = profile.level * 100;
+
+const progress = Math.min(
+  10,
+  Math.floor((profile.renown / renownNeeded) * 10)
+);
+const percent = Math.floor(
+  (profile.renown / renownNeeded) * 100
+);
+const renownBar =
+  "█".repeat(progress) +
+  "░".repeat(10 - progress);
+
+   const profileEmbed = new EmbedBuilder()
+  .setColor("#6D28D9")
+  .setTitle("⚔️ Adventurer Profile")
+  .setDescription(`${interaction.user} stands before the guild.`)
+  .setThumbnail(interaction.user.displayAvatarURL())
+  .addFields(
+    {
+      name: "⚔️ Adventurer",
+      value:
+        `🏅 **Level:** ${profile.level}\n` +
+        `🛡️ **Class:** ${profile.class}\n` +
+        `📜 **Title:** ${profile.activeTitle || profile.title || "Wanderer"}`,
+      inline: true
+    },
+    {
+    name: "💰 Progress",
+    value:
+      `✨ Renown\n\`\`\`\n${renownBar} ${percent}%\n${profile.renown} / ${renownNeeded}\n\`\`\`` +
+      `🪙 Gold: ${profile.gold}\n` +
+      `🏆 Games Won: ${profile.gamesWon || 0}`,
+    inline: true
+  },
+   {
+    name: "⚔️ Equipped",
+    value:
+      `${weapon}\n` +
+      `${armor}\n` +
+      `${trinket}`,
+    inline: false
 },
-        { name: "🏆 Games Won", value: profile.gamesWon.toString(), inline: true }
-      )
-      .setFooter({ text: "Valoryn • Forge Your Legend" })
-      .setTimestamp();
+    {
+      name: "📜 Legend",
+      value:
+        `🏰 **Dungeons Cleared:** ${profile.dungeonsCompleted || 0}\n` +
+        `👑 **Bosses Defeated:** ${profile.bossesDefeated || 0}\n` +
+        `🤝 **Party Dungeons:** ${profile.partyDungeonsCompleted || 0}\n` +
+        `🏅 **Achievements:** ${(profile.achievements || []).length}`,
+      inline: false
+    }
+  )
+  .setFooter({ text: "Valoryn • Forge Your Legend" })
+  .setTimestamp();
 
     await interaction.reply({ embeds: [profileEmbed] });
   }
@@ -2191,6 +2416,7 @@ if (interaction.commandName === "achievements") {
   const profile = profiles[interaction.user.id];
   const unlockedAchievements = checkAchievements(profile);
 const unlockedBossAchievements = checkBossAchievements(profile);
+checkPartyAchievements(profile);
 saveProfiles();
   if (!profile.achievements) profile.achievements = [];
 
@@ -3140,6 +3366,57 @@ if (interaction.commandName === "resetdungeoncooldown") {
     ephemeral: true
   });
 }
+
+if (interaction.commandName === "partydungeon") {
+  const guildId = interaction.guild.id;
+  const dungeonName = interaction.options.getString("dungeon");
+  
+
+  if (activeDungeonParties[guildId]) {
+    return interaction.reply({
+      content: "A party dungeon is already forming in this server.",
+      ephemeral: true
+    });
+  }
+
+  activeDungeonParties[guildId] = {
+    leaderId: interaction.user.id,
+    dungeonName,
+    players: [interaction.user.id]
+  };
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("join_party_dungeon")
+      .setLabel("Join Party")
+      .setStyle(ButtonStyle.Success),
+
+    new ButtonBuilder()
+      .setCustomId("start_party_dungeon")
+      .setLabel("Start Dungeon")
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  const embed = new EmbedBuilder()
+    .setColor("#6D28D9")
+    .setTitle("🏰 Party Dungeon Created")
+    .setDescription(
+      `**Dungeon:** ${dungeonName}\n` +
+      `**Leader:** ${interaction.user}\n\n` +
+      `**Party Members:**\n${interaction.user}\n\n` +
+      `Players: **1/4**`
+    )
+    .setFooter({ text: "Valoryn • Gather your party" })
+    .setTimestamp();
+
+  return interaction.reply({
+    embeds: [embed],
+    components: [row]
+  });
+}
+
+
+
 });
 
 client.login(process.env.DISCORD_TOKEN);
