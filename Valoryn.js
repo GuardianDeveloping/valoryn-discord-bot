@@ -55,6 +55,7 @@ let profiles = {};
 let serverSettings = {};
 let activeRuneQuizzes = {};
 let activeDungeonParties = {};
+let activeWorldBosses = {};
 
 const profileRows = db.prepare("SELECT userId, data FROM profiles").all();
 
@@ -128,7 +129,8 @@ function createProfile(userId) {
     },
 
       dungeonsCompleted: 0,
-      lastDungeon: 0
+      lastDungeon: 0,
+      worldBossesDefeated: 0
     };
 
     saveProfiles();
@@ -160,6 +162,7 @@ function createProfile(userId) {
   if (!profile.lastDungeon) profile.lastDungeon = 0;
   if (!profile.bossesDefeated) profile.bossesDefeated = 0;
   if (!profile.partyDungeonsCompleted) profile.partyDungeonsCompleted = 0;
+   if (!profile.worldBossesDefeated) profile.worldBossesDefeated = 0; 
 
 
   if (!profile.questMessages) profile.questMessages = 0;
@@ -390,6 +393,34 @@ if (
   profile.achievements.push("🌋 Worldbreaker");
 }
 
+if (
+  profile.worldBossesDefeated >= 1 &&
+  !profile.achievements.includes("🌍 World Defender")
+) {
+  profile.achievements.push("🌍 World Defender");
+}
+
+if (
+  profile.worldBossesDefeated >= 10 &&
+  !profile.achievements.includes("⚔️ Dragon Slayer")
+) {
+  profile.achievements.push("⚔️ Dragon Slayer");
+}
+
+if (
+  profile.worldBossesDefeated >= 50 &&
+  !profile.achievements.includes("👑 Savior of Valoryn")
+) {
+  profile.achievements.push("👑 Savior of Valoryn");
+}
+
+if (
+  profile.worldBossesDefeated >= 100 &&
+  !profile.achievements.includes("🔥 Realm Champion")
+) {
+  profile.achievements.push("🔥 Realm Champion");
+}
+
   return unlocked;
 }
 
@@ -559,6 +590,28 @@ if (
   bonus += 0.25;
 }
 
+//worldboss
+if (
+  equipment.weapon === "🔥 Worldbreaker Blade" &&
+  bonusType === "dungeonSuccess"
+) {
+  bonus += 0.30;
+}
+
+if (
+  equipment.armor === "🛡️ Scale of the Worldwyrm" &&
+  bonusType === "dungeonSuccess"
+) {
+  bonus += 0.30;
+}
+
+if (
+  equipment.trinket === "👑 Crown of the Worldbreaker" &&
+  bonusType === "runeRenown"
+) {
+  bonus += 30;
+}
+
   return bonus;
 }
 
@@ -599,6 +652,43 @@ function checkPartyAchievements(profile) {
   return unlocked;
 }
 
+function checkBossAchievements(profile) {
+ if (!profile.achievements) profile.achievements = [];
+
+
+  const unlocked = [];
+
+  for (const achievement of bossAchievements) {
+    if (
+      profile.bossesDefeated >= achievement.requirement &&
+      !profile.achievements.includes(achievement.name)
+    ) {
+      profile.achievements.push(achievement.name);
+      unlocked.push(achievement.name);
+    }
+  }
+
+  return unlocked;
+}
+
+function checkWorldBossAchievements(profile) {
+  if (!profile.achievements) profile.achievements = [];
+
+  const unlocked = [];
+
+  for (const achievement of worldBossAchievements) {
+    if (
+      (profile.worldBossesDefeated || 0) >= achievement.requirement &&
+      !profile.achievements.includes(achievement.name)
+    ) {
+      profile.achievements.push(achievement.name);
+      unlocked.push(achievement.name);
+    }
+  }
+
+  return unlocked;
+}
+
 function migrateAchievements(profile) {
   if (!profile.achievements) profile.achievements = [];
 
@@ -621,6 +711,37 @@ function migrateAchievements(profile) {
 }
 
 
+const worldBossList = [
+  {
+    name: "🔥 Emberfang the Worldbreaker",
+    hp: 1000,
+    description: "A world-shaking dragon descends upon the realm."
+  },
+
+  {
+    name: "☠️ Morveth the Eternal",
+    hp: 1200,
+    description: "An immortal lich rises from the forgotten crypts."
+  },
+
+  {
+    name: "🌊 Leviathan of the Deep",
+    hp: 1500,
+    description: "A colossal sea beast emerges from the abyss."
+  },
+
+  {
+    name: "⚡ Storm Titan Varkul",
+    hp: 1800,
+    description: "The heavens tremble as Varkul awakens."
+  },
+
+  {
+    name: "🌑 The Void King",
+    hp: 2500,
+    description: "A being from beyond reality consumes all light."
+  }
+];
 
 
 
@@ -842,7 +963,12 @@ const allAchievements = [
   "🩸 First Blood",
   "💀 Boss Hunter",
   "🔥 Legendary Hero",
-  "🌋 Worldbreaker"
+  "🌋 Worldbreaker",
+  "🌍 World Defender",
+  "⚔️ Dragon Slayer",
+  "👑 Savior of Valoryn",
+  "🔥 Realm Champion",
+
 ];
 
 
@@ -958,6 +1084,22 @@ const equipmentItems = {
   slot: "armor",
   bonus: "+25% Dungeon Success"
 },
+//WorldBossDrops
+"🔥 Worldbreaker Blade": {
+  slot: "weapon",
+  bonus: "+30% Dungeon Success"
+},
+
+"🛡️ Scale of the Worldwyrm": {
+  slot: "armor",
+  bonus: "+30% Dungeon Success"
+},
+
+"👑 Crown of the Worldbreaker": {
+  slot: "trinket",
+  bonus: "+30 Rune Renown"
+}
+
 };
 
 const dungeons = {
@@ -1196,6 +1338,34 @@ const bossLoot = {
   ]
 };
 
+const worldBossLoot = {
+  "🔥 Emberfang the Worldbreaker": [
+    { item: "🔥 Worldbreaker Blade", rarity: "Legendary" },
+    { item: "🛡️ Scale of the Worldwyrm", rarity: "Legendary" },
+    { item: "👑 Crown of the Worldbreaker", rarity: "Mythic" }
+  ],
+
+  "☠️ Morveth the Eternal": [
+    { item: "☠️ Crown of Morveth", rarity: "Legendary" },
+    { item: "📖 Tome of Eternity", rarity: "Mythic" }
+  ],
+
+  "🌊 Leviathan of the Deep": [
+    { item: "🔱 Leviathan Trident", rarity: "Legendary" },
+    { item: "🐚 Abyssal Shellplate", rarity: "Mythic" }
+  ],
+
+  "⚡ Storm Titan Varkul": [
+    { item: "⚡ Titanbreaker Axe", rarity: "Legendary" },
+    { item: "🌩️ Stormlord's Charm", rarity: "Mythic" }
+  ],
+
+  "🌑 The Void King": [
+    { item: "🌑 Voidblade", rarity: "Mythic" },
+    { item: "👑 Crown of the Void", rarity: "Mythic" }
+  ]
+};
+
 const bossTitles = {
   "👑 Goblin Warlord": "Goblinbane",
   "☠️ Lich King Morveth": "Deathwalker",
@@ -1226,6 +1396,13 @@ const partyAchievements = [
   { name: "⚔️ Adventuring Crew", requirement: 10 },
   { name: "🏰 Guild Veterans", requirement: 50 },
   { name: "👑 Unbreakable Bond", requirement: 100 }
+];
+
+const worldBossAchievements = [
+  { name: "🌍 World Defender", requirement: 1 },
+  { name: "⚔️ Dragon Slayer", requirement: 10 },
+  { name: "👑 Savior of Valoryn", requirement: 50 },
+  { name: "🔥 Realm Champion", requirement: 100 }
 ];
 
 
@@ -1534,6 +1711,18 @@ new SlashCommandBuilder()
       )
   ),
 
+  new SlashCommandBuilder()
+  .setName("spawnworldboss")
+  .setDescription("Spawn a world boss"),
+
+new SlashCommandBuilder()
+  .setName("worldboss")
+  .setDescription("View the active world boss"),
+
+new SlashCommandBuilder()
+  .setName("attackboss")
+  .setDescription("Attack the active world boss"),
+
 
   //Utility stuff
   new SlashCommandBuilder()
@@ -1797,6 +1986,8 @@ client.on("interactionCreate", async interaction => {
 
   }
     if (interaction.customId === "rune_skip") {
+      const guildId = interaction.guild.id;
+      const activeRuneQuiz = activeRuneQuizzes[guildId];
     if (!activeRuneQuiz) {
         return interaction.reply({
         content: "There is no active rune puzzle.",
@@ -1806,7 +1997,7 @@ client.on("interactionCreate", async interaction => {
 
     const answer = activeRuneQuiz.answer;
 
-    activeRuneQuiz = null;
+    delete activeRuneQuizzes[guildId];
 
     const skipEmbed = new EmbedBuilder()
         .setColor("#B91C1C")
@@ -1818,22 +2009,33 @@ client.on("interactionCreate", async interaction => {
         .setFooter({ text: "Valoryn • Another mystery awaits" })
         .setTimestamp();
 
-    return interaction.reply({ embeds: [skipEmbed] });
+    return interaction.update({ embeds: [skipEmbed], components:[] });
     }
 
     if (interaction.customId === "rune_stats") {
-    const statsEmbed = new EmbedBuilder()
-        .setColor("#6D28D9")
-        .setTitle("📊 Rune Puzzle Stats")
-        .setDescription(
-        `Total Puzzles Solved: **${Object.values(profiles).reduce((sum, p) => sum + profiles.runesSolved, 0)}**\n` +
-        `Current Puzzle: ${activeRuneQuiz ? "Active" : "None"}`
-        )
-        .setFooter({ text: "Valoryn • The guild's pulse" })
-        .setTimestamp();
+  const guildId = interaction.guild.id;
+  const activeRuneQuiz = activeRuneQuizzes[guildId];
 
-    return interaction.reply({ embeds: [statsEmbed] });
-    }
+  const totalPuzzlesSolved = Object.values(profiles).reduce(
+    (sum, profile) => sum + (profile.runesSolved || 0),
+    0
+  );
+
+  const statsEmbed = new EmbedBuilder()
+    .setColor("#6D28D9")
+    .setTitle("📊 Rune Puzzle Stats")
+    .setDescription(
+      `Total Puzzles Solved: **${totalPuzzlesSolved}**\n` +
+      `Current Puzzle: ${activeRuneQuiz ? "Active" : "None"}`
+    )
+    .setFooter({ text: "Valoryn • The guild's pulse" })
+    .setTimestamp();
+
+  return interaction.reply({
+    embeds: [statsEmbed],
+    ephemeral: true
+  });
+}
     if (interaction.customId === "join_party_dungeon") {
     if (!party) {
       return interaction.reply({
@@ -2027,6 +2229,7 @@ const renownBar =
         `🏰 **Dungeons Cleared:** ${profile.dungeonsCompleted || 0}\n` +
         `👑 **Bosses Defeated:** ${profile.bossesDefeated || 0}\n` +
         `🤝 **Party Dungeons:** ${profile.partyDungeonsCompleted || 0}\n` +
+        `🌍 **World Bosses:** ${profile.worldBossesDefeated}\n` +
         `🏅 **Achievements:** ${(profile.achievements || []).length}`,
       inline: false
     }
@@ -2434,10 +2637,14 @@ if (interaction.commandName === "achievements") {
   createProfile(interaction.user.id);
 
   const profile = profiles[interaction.user.id];
-  const unlockedAchievements = checkAchievements(profile);
-const unlockedBossAchievements = checkBossAchievements(profile);
-checkPartyAchievements(profile);
-saveProfiles();
+
+  checkAchievements(profile);
+  checkBossAchievements(profile);
+  checkPartyAchievements(profile);
+  checkWorldBossAchievements(profile);
+
+  saveProfiles();
+
   if (!profile.achievements) profile.achievements = [];
 
   const achievementList = allAchievements
@@ -2979,6 +3186,7 @@ console.log(loot);
 
 await interaction.reply({ embeds: [dungeonEmbed] });
 }
+
 if (interaction.commandName === "help") {
   const helpEmbed = new EmbedBuilder()
     .setColor("#6D28D9")
@@ -3435,6 +3643,240 @@ if (interaction.commandName === "partydungeon") {
   });
 }
 
+if (interaction.commandName === "spawnworldboss") {
+  if (!interaction.memberPermissions.has("Administrator")) {
+    return interaction.reply({
+      content: "Only administrators may spawn world bosses.",
+      ephemeral: true
+    });
+  }
+
+  participants: {}
+
+  const guildId = interaction.guild.id;
+
+  if (activeWorldBosses[guildId]) {
+    return interaction.reply({
+      content: "A world boss is already active.",
+      ephemeral: true
+    });
+  }
+
+  const boss =
+  worldBossList[
+    Math.floor(Math.random() * worldBossList.length)
+  ];
+
+  activeWorldBosses[guildId] = {
+    name: boss.name,
+    description: boss.description,
+    hp: boss.hp,
+    maxHp: boss.hp,
+    participants: {}
+  };
+
+  const embed = new EmbedBuilder()
+    .setColor("#10B981")
+    .setTitle("🌍 World Boss Appeared!")
+    .setDescription(
+      `**${boss.name}**\n\n` +
+      `${boss.description}\n\n` +
+      `❤️ HP: **${boss.hp}/${boss.hp}**\n\n` +
+      `Use \`/attackboss\` to fight!`
+    )
+    .setFooter({ text: "Valoryn • The realm is under siege" })
+    .setTimestamp();
+
+  return interaction.reply({ embeds: [embed] });
+}
+
+if (interaction.commandName === "worldboss") {
+  const boss =
+    activeWorldBosses[interaction.guild.id];
+
+
+  if (!boss) {
+    return interaction.reply({
+      content: "There is no active world boss.",
+      ephemeral: true
+    });
+  }
+ const rankings = Object.entries(boss.participants || {})
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 5);
+
+let leaderboard = "No adventurers have attacked yet.";
+
+if (rankings.length > 0) {
+  leaderboard = rankings
+    .map(([userId, damage], index) =>
+      `${index + 1}. <@${userId}> — ${damage} damage`
+    )
+    .join("\n");
+}
+const hpPercent = Math.floor(
+  (boss.hp / boss.maxHp) * 10
+);
+
+const hpBar =
+  "█".repeat(hpPercent) +
+  "░".repeat(10 - hpPercent);
+
+  const embed = new EmbedBuilder()
+    .setColor("#10B981")
+    .setTitle("🌍 Active World Boss")
+    .setDescription(
+  `**${boss.name}**\n\n` +
+  `❤️ HP\n` +
+  `\`\`\`\n${hpBar}\n${boss.hp}/${boss.maxHp}\n\`\`\``
+)
+    .addFields({
+  name: "🏆 Top Damage",
+  value: leaderboard,
+  inline: false
+})
+    .setFooter({ text: "Valoryn • The battle continues" })
+    .setTimestamp();
+
+
+
+  return interaction.reply({
+    embeds: [embed]
+  });
+}
+
+if (interaction.commandName === "attackboss") {
+  const guildId = interaction.guild.id;
+  const boss = activeWorldBosses[guildId];
+
+  if (!boss) {
+    return interaction.reply({
+      content: "There is no active world boss to attack.",
+      ephemeral: true
+    });
+  }
+
+  createProfile(interaction.user.id);
+
+  const userId = interaction.user.id;
+
+  let damage = Math.floor(Math.random() * 51) + 50;
+  const hpPercent = Math.floor(
+  (boss.hp / boss.maxHp) * 10
+);
+
+const hpBar =
+  "█".repeat(hpPercent) +
+  "░".repeat(10 - hpPercent);
+
+  boss.hp -= damage;
+  if (boss.hp < 0) boss.hp = 0;
+
+  if (!boss.participants[userId]) {
+    boss.participants[userId] = 0;
+  }
+
+  boss.participants[userId] += damage;
+
+if (boss.hp <= 0) {
+  const rankings = Object.entries(boss.participants)
+    .sort((a, b) => b[1] - a[1]);
+
+  rewardText +=
+  `${i + 1}. <@${playerId}> — **${totalDamage} damage**\n` +
+  `✨ +${renownReward} Renown | 🪙 +${goldReward} Gold${lootText}\n\n`;
+
+  for (let i = 0; i < rankings.length; i++) {
+    const [playerId, totalDamage] = rankings[i];
+
+    createProfile(playerId);
+    const profile = profiles[playerId];
+
+    let goldReward = 250;
+    let renownReward = 50;
+
+    if (i === 0) {
+      goldReward = 1000;
+      renownReward = 500;
+    } else if (i === 1) {
+      goldReward = 750;
+      renownReward = 250;
+    } else if (i === 2) {
+      goldReward = 500;
+      renownReward = 100;
+    }
+
+    profile.gold += goldReward;
+    profile.renown += renownReward;
+    if (!profile.worldBossesDefeated) { profile.worldBossesDefeated = 0; }
+profile.worldBossesDefeated += 1;
+const unlockedWorldBossAchievements =
+  checkWorldBossAchievements(profile);
+    let lootText = "";
+
+  const lootTable = worldBossLoot[boss.name];
+
+  if (lootTable && Math.random() < 0.10) {
+    const loot = lootTable[Math.floor(Math.random() * lootTable.length)];
+
+    if (!profile.inventory) profile.inventory = [];
+    profile.inventory.push(loot.item);
+
+    lootText = `\n🎁 Loot Drop: ${loot.item} (${loot.rarity})`;
+  }
+
+  let achievementText = "";
+
+if (unlockedWorldBossAchievements.length > 0) {
+  achievementText =
+    `\n🏅 Achievement Unlocked:\n` +
+    unlockedWorldBossAchievements.join("\n");
+}
+
+    await checkLevelUp(interaction, profile);
+
+  rewardText +=
+  `${i + 1}. <@${playerId}> — **${totalDamage} damage**\n` +
+  `✨ +${renownReward} Renown | 🪙 +${goldReward} Gold` +
+  `${lootText}` +
+  `${achievementText}\n\n`;
+  }
+
+  saveProfiles();
+
+  const winnerId = rankings[0][0];
+
+  const deathEmbed = new EmbedBuilder()
+    .setColor("#FBBF24")
+    .setTitle("👑 World Boss Defeated!")
+    .setDescription(
+      `**${boss.name}** has fallen!\n\n` +
+      `🥇 Top Damage Dealer: <@${winnerId}>\n\n` +
+      `**Rewards:**\n${rewardText}`
+    )
+    .setFooter({ text: "Valoryn • The realm stands victorious" })
+    .setTimestamp();
+
+  delete activeWorldBosses[guildId];
+
+  return interaction.reply({
+    embeds: [deathEmbed]
+  });
+}
+
+  const attackEmbed = new EmbedBuilder()
+    .setColor("#DC2626")
+    .setTitle("⚔️ World Boss Attacked!")
+    .setDescription(
+  `**${boss.name}**\n\n` +
+  `❤️ HP\n` +
+  `\`\`\`\n${hpBar}\n${boss.hp}/${boss.maxHp}\n\`\`\``
+)
+    .setFooter({ text: "Valoryn • The realm fights back" })
+    .setTimestamp();
+
+  return interaction.reply({ embeds: [attackEmbed] });
+}
 
 
 });
