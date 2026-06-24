@@ -1051,15 +1051,15 @@ const shopItems = [
 const equipmentItems = {
   "⚔️ Iron Sword": {
     slot: "weapon",
-    bonus: "+5% dungeon success"
+    bonus: "+5% Dungeon success"
   },
   "🛡️ Leather Armor": {
     slot: "armor",
-    bonus: "+5% dungeon success"
+    bonus: "+5% Dungeon success"
   },
   "💍 Rune Ring": {
     slot: "trinket",
-    bonus: "+5 rune renown"
+    bonus: "+5 Rune renown"
   },
   //dungeonGear
 
@@ -1630,10 +1630,6 @@ new SlashCommandBuilder()
       .setRequired(true)
   ),
 
-  new SlashCommandBuilder()
-  .setName("equipment")
-  .setDescription("View your equipped gear"),
-
 new SlashCommandBuilder()
   .setName("equip")
   .setDescription("Equip an item from your inventory")
@@ -2176,81 +2172,106 @@ for (const playerId of party.players) {
 
   if (!interaction.isChatInputCommand()) return;
 
-  if (interaction.commandName === "profile") {
-    createProfile(interaction.user.id);
+if (interaction.commandName === "profile") {
+  createProfile(interaction.user.id);
 
-    const profile = profiles[interaction.user.id];
-    if (!profile.achievements) profile.achievements = [];
-    if (!profile.equipment) { profile.equipment = {};}
+  const profile = profiles[interaction.user.id];
 
-    const weapon =
-    profile.equipment.weapon || "None";
+  if (!profile.achievements) profile.achievements = [];
+  if (!profile.equipment) {
+    profile.equipment = {
+      weapon: null,
+      armor: null,
+      trinket: null
+    };
+  }
 
-  const armor =
-    profile.equipment.armor || "None";
+  const neededRenown = renownNeeded(profile.level);
 
-  const trinket =
-    profile.equipment.trinket || "None";
+  const progress = Math.min(
+    10,
+    Math.floor((profile.renown / neededRenown) * 10)
+  );
 
-  const renownNeeded = profile.level * 100;
+  const percent = Math.min(
+    100,
+    Math.floor((profile.renown / neededRenown) * 100)
+  );
 
-const progress = Math.min(
-  10,
-  Math.floor((profile.renown / renownNeeded) * 10)
-);
-const percent = Math.floor(
-  (profile.renown / renownNeeded) * 100
-);
-const renownBar =
-  "█".repeat(progress) +
-  "░".repeat(10 - progress);
+  const renownBar =
+    "█".repeat(progress) +
+    "░".repeat(10 - progress);
 
-   const profileEmbed = new EmbedBuilder()
-  .setColor("#6D28D9")
-  .setTitle("⚔️ Adventurer Profile")
-  .setDescription(`${interaction.user} stands before the guild.`)
-  .setThumbnail(interaction.user.displayAvatarURL())
-  .addFields(
-    {
-      name: "⚔️ Adventurer",
-      value:
-        `🏅 **Level:** ${profile.level}\n` +
-        `🛡️ **Class:** ${profile.class}\n` +
-        `📜 **Title:** ${profile.activeTitle || profile.title || "Wanderer"}`,
-      inline: true
-    },
-    {
-    name: "💰 Progress",
-    value:
-      `✨ Renown\n\`\`\`\n${renownBar} ${percent}%\n${profile.renown} / ${renownNeeded}\n\`\`\`` +
-      `🪙 Gold: ${profile.gold}\n` +
-      `🏆 Games Won: ${profile.gamesWon || 0}`,
+  const weapon = profile.equipment.weapon || "Empty";
+  const armor = profile.equipment.armor || "Empty";
+  const trinket = profile.equipment.trinket || "Empty";
+
+  const weaponBonus = equipmentItems[weapon]?.bonus || "No bonus";
+  const armorBonus = equipmentItems[armor]?.bonus || "No bonus";
+  const trinketBonus = equipmentItems[trinket]?.bonus || "No bonus";
+
+  const adventurerText =
+    `🏅 Level: ${profile.level}\n` +
+    `🛡️ Class: ${profile.class}\n` ;
+
+  const progressText =
+    `🪙 Gold: ${profile.gold}\n` +
+    `🏆 Games Won: ${profile.gamesWon || 0}`;
+
+  const equipmentText =
+  `${weapon} (${weaponBonus})\n` +
+  `${armor} (${armorBonus})\n` +
+  `${trinket} (${trinketBonus})`;
+
+  const legendText =
+    `🏰 Dungeons Cleared: ${profile.dungeonsCompleted || 0}\n` +
+    `👑 Bosses Defeated: ${profile.bossesDefeated || 0}\n` +
+    `🤝 Party Dungeons: ${profile.partyDungeonsCompleted || 0}\n` +
+    `🌍 World Bosses: ${profile.worldBossesDefeated || 0}\n` +
+    `🏅 Achievements: ${profile.achievements.length}`;
+
+  const profileEmbed = new EmbedBuilder()
+    .setColor("#6D28D9")
+    .setTitle("⚔️ Adventurer Profile")
+    .setDescription(
+  `${interaction.user} stands before the guild.\n\n` +
+  `✨ **Renown Progress**\n` +
+  `\`${renownBar}\` **${percent}%**\n` +
+  `${profile.renown} / ${neededRenown}`
+)
+    .setThumbnail(interaction.user.displayAvatarURL())
+.addFields(
+  {
+    name: "⚔️ Adventurer",
+    value: adventurerText,
     inline: true
   },
-   {
-    name: "⚔️ Equipped",
-    value:
-      `${weapon}\n` +
-      `${armor}\n` +
-      `${trinket}`,
-    inline: false
+  {
+  name: "💰 Progress",
+  value: progressText,
+  inline: true
 },
-    {
-      name: "📜 Legend",
-      value:
-        `🏰 **Dungeons Cleared:** ${profile.dungeonsCompleted || 0}\n` +
-        `👑 **Bosses Defeated:** ${profile.bossesDefeated || 0}\n` +
-        `🤝 **Party Dungeons:** ${profile.partyDungeonsCompleted || 0}\n` +
-        `🌍 **World Bosses:** ${profile.worldBossesDefeated}\n` +
-        `🏅 **Achievements:** ${(profile.achievements || []).length}`,
-      inline: false
-    }
-  )
-  .setFooter({ text: "Valoryn • Forge Your Legend" })
-  .setTimestamp();
+  {
+    name: "📜 Title",
+    value: profile.activeTitle || "Wanderer",
+    inline: false
+  },
+  {
+    name: "⚔️ Equipped",
+    value: equipmentText,
+    inline: false
+  },
+  {
+    name: "📜 Legend",
+    value: legendText,
+    inline: false
+  },
+)
+    .setFooter({ text: "Valoryn • Forge Your Legend" })
+    .setTimestamp();
 
-    await interaction.reply({ embeds: [profileEmbed] });
-  }
+  await interaction.reply({ embeds: [profileEmbed] });
+}
 
 
   if (interaction.commandName === "leaderboard") {
@@ -3375,76 +3396,6 @@ if (interaction.commandName === "backupstats") {
   }
 }
 
-if (interaction.commandName === "equipment") {
-  try {
-    createProfile(interaction.user.id);
-
-    const profile = profiles[interaction.user.id];
-
-    if (!profile.equipment) {
-      profile.equipment = {
-        weapon: null,
-        armor: null,
-        trinket: null
-      };
-    }
-
-    const equipment = profile.equipment;
-
-    const weapon = equipment.weapon;
-    const armor = equipment.armor;
-    const trinket = equipment.trinket;
-
-    const weaponBonus = weapon && equipmentItems[weapon]
-      ? equipmentItems[weapon].bonus
-      : "No bonus";
-
-    const armorBonus = armor && equipmentItems[armor]
-      ? equipmentItems[armor].bonus
-      : "No bonus";
-
-    const trinketBonus = trinket && equipmentItems[trinket]
-      ? equipmentItems[trinket].bonus
-      : "No bonus";
-
-    const equipmentEmbed = new EmbedBuilder()
-      .setColor("#6D28D9")
-      .setTitle("⚔️ Equipped Gear")
-      .addFields(
-        {
-          name: "⚔️ Weapon",
-          value: weapon ? `${weapon}\n**Bonus:** ${weaponBonus}` : "None Equipped",
-          inline: false
-        },
-        {
-          name: "🛡️ Armor",
-          value: armor ? `${armor}\n**Bonus:** ${armorBonus}` : "None Equipped",
-          inline: false
-        },
-        {
-          name: "💍 Trinket",
-          value: trinket ? `${trinket}\n**Bonus:** ${trinketBonus}` : "None Equipped",
-          inline: false
-        }
-      )
-      .setFooter({ text: "Valoryn • Equipped Relics" });
-
-    await interaction.reply({
-      embeds: [equipmentEmbed],
-      ephemeral: true
-    });
-
-  } catch (error) {
-    console.error("Equipment command error:", error);
-
-    if (!interaction.replied) {
-      await interaction.reply({
-        content: `Equipment command failed: ${error.message}`,
-        ephemeral: true
-      });
-    }
-  }
-}
 
 if (interaction.commandName === "equip") {
   createProfile(interaction.user.id);
