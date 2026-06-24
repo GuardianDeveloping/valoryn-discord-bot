@@ -136,6 +136,7 @@ function createProfile(userId) {
 
   const profile = profiles[userId];
 
+  migrateAchievements(profile);
   if (!profile.titles) profile.titles = ["Wanderer"];
   if (!profile.activeTitle) profile.activeTitle = profile.title || "Wanderer";
   if (!profile.achievements) profile.achievements = [];
@@ -159,7 +160,6 @@ function createProfile(userId) {
   if (!profile.lastDungeon) profile.lastDungeon = 0;
   if (!profile.bossesDefeated) profile.bossesDefeated = 0;
   if (!profile.partyDungeonsCompleted) profile.partyDungeonsCompleted = 0;
-profile.partyDungeonsCompleted += 1;
 
 
   if (!profile.questMessages) profile.questMessages = 0;
@@ -316,78 +316,78 @@ function checkAchievements(profile) {
   const unlocked = [];
 
   if ((profile.level || 1) >= 5 && unlockAchievement(profile, "First Steps")) {
-    unlocked.push("First Steps");
+    unlocked.push("👣 First Steps");
   }
 
-  if ((profile.runesSolved || 0) >= 5 && unlockAchievement(profile, "Rune Solver")) {
-    unlocked.push("Rune Solver");
+  if ((profile.runesSolved || 0) >= 5 && unlockAchievement(profile, "🧩 Rune Solver")) {
+    unlocked.push("🧩 Rune Solver");
   }
 
-  if ((profile.level || 1) >= 10 && unlockAchievement(profile, "Veteran Adventurer")) {
-    unlocked.push("Veteran Adventurer");
+  if ((profile.level || 1) >= 10 && unlockAchievement(profile, "⚔️ Veteran Adventurer")) {
+    unlocked.push("⚔️ Veteran Adventurer");
   }
 
-  if ((profile.dailyStreak || 0) >= 7 && unlockAchievement(profile, "Consistent")) {
-    unlocked.push("Consistent");
+  if ((profile.dailyStreak || 0) >= 7 && unlockAchievement(profile, "📅 Consistent")) {
+    unlocked.push("📅 Consistent");
   }
 
-  if ((profile.gold || 0) >= 1000 && unlockAchievement(profile, "Gold Hoarder")) {
-    unlocked.push("Gold Hoarder");
+  if ((profile.gold || 0) >= 1000 && unlockAchievement(profile, "💰 Gold Hoarder")) {
+    unlocked.push("💰 Gold Hoarder");
   }
 
-  if ((profile.questsCompleted || 0) >= 25 && unlockAchievement(profile, "Guild Hero")) {
-    unlocked.push("Guild Hero");
+  if ((profile.questsCompleted || 0) >= 25 && unlockAchievement(profile, "🛡️ Guild Hero")) {
+    unlocked.push("🛡️ Guild Hero");
   }
 
-  if ((profile.runesSolved || 0) >= 25 && unlockAchievement(profile, "Rune Master")) {
-  unlocked.push("Rune Master");
+  if ((profile.runesSolved || 0) >= 25 && unlockAchievement(profile, "📖 Rune Master")) {
+  unlocked.push("📖 Rune Master");
 }
 
-if ((profile.runesSolved || 0) >= 100 && unlockAchievement(profile, "Rune Champion")) {
-  unlocked.push("Rune Champion");
+if ((profile.runesSolved || 0) >= 100 && unlockAchievement(profile, "🔮 Rune Champion")) {
+  unlocked.push("🔮 Rune Champion");
 }
 
-if ((profile.level || 1) >= 25 && unlockAchievement(profile, "Elite Adventurer")) {
-  unlocked.push("Elite Adventurer");
+if ((profile.level || 1) >= 25 && unlockAchievement(profile, "🏹 Elite Adventurer")) {
+  unlocked.push("🏹 Elite Adventurer");
 }
 
-if ((profile.dailyStreak || 0) >= 30 && unlockAchievement(profile, "Dedicated")) {
-  unlocked.push("Dedicated");
+if ((profile.dailyStreak || 0) >= 30 && unlockAchievement(profile, "🏆 Dedicated")) {
+  unlocked.push("🏆 Dedicated");
 }
 
-if ((profile.gold || 0) >= 5000 && unlockAchievement(profile, "Wealthy")) {
-  unlocked.push("Wealthy");
+if ((profile.gold || 0) >= 5000 && unlockAchievement(profile, "💎 Wealthy")) {
+  unlocked.push("💎 Wealthy");
 }
 
-if ((profile.questBoardsCompleted || 0) >= 100 && unlockAchievement(profile, "Guild Veteran")) {
-  unlocked.push("Guild Veteran");
+if ((profile.questBoardsCompleted || 0) >= 100 && unlockAchievement(profile, "👑 Guild Veteran")) {
+  unlocked.push("👑 Guild Veteran");
 }
 if (
   profile.bossesDefeated >= 1 &&
-  !profile.achievements.includes("First Blood")
+  !profile.achievements.includes("🩸 First Blood")
 ) {
-  profile.achievements.push("First Blood");
+  profile.achievements.push("🩸 First Blood");
 }
 
 if (
   profile.bossesDefeated >= 10 &&
-  !profile.achievements.includes("Boss Hunter")
+  !profile.achievements.includes("💀 Boss Hunter")
 ) {
-  profile.achievements.push("Boss Hunter");
+  profile.achievements.push("💀 Boss Hunter");
 }
 
 if (
   profile.bossesDefeated >= 50 &&
-  !profile.achievements.includes("Legendary Hero")
+  !profile.achievements.includes("🔥 Legendary Hero")
 ) {
-  profile.achievements.push("Legendary Hero");
+  profile.achievements.push("🔥 Legendary Hero");
 }
 
 if (
   profile.bossesDefeated >= 100 &&
-  !profile.achievements.includes("Worldbreaker")
+  !profile.achievements.includes("🌋 Worldbreaker")
 ) {
-  profile.achievements.push("Worldbreaker");
+  profile.achievements.push("🌋 Worldbreaker");
 }
 
   return unlocked;
@@ -599,6 +599,27 @@ function checkPartyAchievements(profile) {
   return unlocked;
 }
 
+function migrateAchievements(profile) {
+  if (!profile.achievements) profile.achievements = [];
+
+  const achievementMap = {
+    "First Steps": "👣 First Steps",
+    "Rune Solver": "🧩 Rune Solver",
+    "Rune Master": "📖 Rune Master",
+    "Veteran Adventurer": "⚔️ Veteran Adventurer",
+    "Gold Hoarder": "💰 Gold Hoarder",
+    "First Blood": "🩸 First Blood",
+    "Boss Hunter": "💀 Boss Hunter",
+    "First Fellowship": "🤝 First Fellowship"
+  };
+
+  profile.achievements = profile.achievements.map(achievement =>
+    achievementMap[achievement] || achievement
+  );
+
+  profile.achievements = [...new Set(profile.achievements)];
+}
+
 
 
 
@@ -801,28 +822,27 @@ const allTitles = [
 
 
 const allAchievements = [
-  "First Steps",
-  "Rune Solver",
-  "Rune Master",
-  "Veteran Adventurer",
-  "Elite Adventurer",
-  "Consistent",
-  "Dedicated",
-  "Gold Hoarder",
-  "Wealthy",
-  "Guild Hero",
-  "Guild Veteran",
-  "Rune Champion",
+  "👣 First Steps",
+  "🧩 Rune Solver",
+  "📖 Rune Master",
+  "⚔️ Veteran Adventurer",
+  "🏹 Elite Adventurer",
+  "📅 Consistent",
+  "🏆 Dedicated",
+  "💰 Gold Hoarder",
+  "💎 Wealthy",
+  "🛡️ Guild Hero",
+  "👑 Guild Veteran",
+  "🔮 Rune Champion",
+  "🌍 Worldbreaker",
   "🤝 First Fellowship",
-"⚔️ Adventuring Crew",
-"🏰 Guild Veterans",
-"👑 Unbreakable Bond",
-  "First Blood",
-  "Boss Hunter",
-  "Legendary Hero",
-  "Worldbreaker",
-
-
+  "⚔️ Adventuring Crew",
+  "🏰 Guild Veterans",
+  "👑 Unbreakable Bond",
+  "🩸 First Blood",
+  "💀 Boss Hunter",
+  "🔥 Legendary Hero",
+  "🌋 Worldbreaker"
 ];
 
 
