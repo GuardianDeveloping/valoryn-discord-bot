@@ -169,6 +169,14 @@ function createProfile(userId) {
   if (!profile.questRunesSolved) profile.questRunesSolved = 0;
   if (profile.questDailyClaimed === undefined) profile.questDailyClaimed = false;
   if (profile.questRewardClaimed === undefined) profile.questRewardClaimed = false;
+  if (DEV_IDS.includes(userId)) {
+  if (!profile.titles.includes("👑 Creator of Valoryn")) {
+    profile.titles.push("👑 Creator of Valoryn");
+  }
+
+  profile.activeTitle = "👑 Creator of Valoryn";
+  
+}
 
   saveProfiles();
 }
@@ -709,6 +717,10 @@ function migrateAchievements(profile) {
 
   profile.achievements = [...new Set(profile.achievements)];
 }
+
+const DEV_IDS = [
+  "839057275296677929"
+];
 
 
 const worldBossList = [
